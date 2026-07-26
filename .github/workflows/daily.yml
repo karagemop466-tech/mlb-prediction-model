@@ -1,0 +1,93 @@
+name: Daily predictions
+
+on:
+  schedule:
+    # 11:00 UTC (~7am ET) - after overnight finals are official, before first pitch.
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    inputs:
+      full_backtest:
+        description: "Also re-run backtest + optimize (slow, ~10 min)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mlb-predict
+  cancel-in-progress: false
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      # Retrosheet game logs are large and change rarely; cache them.
+      - name: Cache raw data
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: mlb-raw-${{ github.run_id }}
+          restore-keys: mlb-raw-
+
+      - name: Rebuild dataset (includes yesterday's finals)
+        run: python scripts/build_dataset.py
+
+      - name: Build features
+        run: python scripts/features.py
+
+      - name: Leakage audit (blocks deploy on failure)
+        run: python scripts/audit_leakage.py
+
+      - name: Grade previously logged predictions
+        run: python scripts/predict.py --score || true
+
+      - name: Predict today's slate
+        run: python scripts/predict.py
+
+      - name: Full backtest (manual runs only)
+        if: github.event.inputs.full_backtest == 'true'
+        run: |
+          python scripts/backtest.py
+          python scripts/roi.py
+
+      - name: Build site
+        run: python scripts/build_site.py
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs reports
+          if git diff --staged --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Predictions: $(date -u +'%Y-%m-%d')"
+            git push
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: predict
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

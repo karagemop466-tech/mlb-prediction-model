@@ -1,0 +1,16 @@
+date,game_pk,away,home,away_name,home_name,away_sp_name,home_sp_name,p_home_win,pick,confidence,fair_ml_home,game_time
+2026-07-26,822950,CLE,TBA,Cleveland Guardians,Tampa Bay Rays,Parker Messick,Drew Rasmussen,0.5410418983495093,Tampa Bay Rays,0.5410418983495093,-118,12:15 PM ET
+2026-07-26,822706,AZ,WAS,Arizona Diamondbacks,Washington Nationals,Kohl Drake,Miles Mikolas,0.5194973343851776,Washington Nationals,0.5194973343851776,-108,1:35 PM ET
+2026-07-26,823354,CHN,PIT,Chicago Cubs,Pittsburgh Pirates,Jameson Taillon,Braxton Ashcraft,0.47861614317147744,Chicago Cubs,0.5213838568285225,109,1:35 PM ET
+2026-07-26,824730,TOR,BOS,Toronto Blue Jays,Boston Red Sox,Kevin Gausman,Ranger Suarez,0.5696505711597983,Boston Red Sox,0.5696505711597983,-132,1:35 PM ET
+2026-07-26,824810,ATL,BAL,Atlanta Braves,Baltimore Orioles,Reynaldo López,Shane Baz,0.5060280210211241,Baltimore Orioles,0.5060280210211241,-102,1:35 PM ET
+2026-07-26,824246,KCA,DET,Kansas City Royals,Detroit Tigers,Luinder Avila,Framber Valdez,0.5924377932812188,Detroit Tigers,0.5924377932812188,-145,1:40 PM ET
+2026-07-26,823599,LAN,NYN,Los Angeles Dodgers,New York Mets,Emmet Sheehan,Freddy Peralta,0.39815982971886776,Los Angeles Dodgers,0.6018401702811322,151,1:40 PM ET
+2026-07-26,823840,SDN,MIA,San Diego Padres,Miami Marlins,Walker Buehler,Janson Junk,0.5586021869915646,Miami Marlins,0.5586021869915646,-127,1:40 PM ET
+2026-07-26,823678,OAK,MIN,Athletics,Minnesota Twins,Jeffrey Springs,Connor Prielipp,0.572821752395601,Minnesota Twins,0.572821752395601,-134,2:10 PM ET
+2026-07-26,824572,HOU,CHA,Houston Astros,Chicago White Sox,Ronel Blanco,Erick Fedde,0.5619304061267734,Chicago White Sox,0.5619304061267734,-128,2:10 PM ET
+2026-07-26,823755,COL,MIL,Colorado Rockies,Milwaukee Brewers,Kyle Freeland,Jacob Misiorowski,0.6227248366025637,Milwaukee Brewers,0.6227248366025637,-165,2:10 PM ET
+2026-07-26,823028,CIN,SLN,Cincinnati Reds,St. Louis Cardinals,Andrew Abbott,Kyle Leahy,0.5634886150550047,St. Louis Cardinals,0.5634886150550047,-129,2:15 PM ET
+2026-07-26,822870,SEA,TEX,Seattle Mariners,Texas Rangers,Logan Gilbert,Jacob deGrom,0.5043530168157735,Texas Rangers,0.5043530168157735,-102,2:35 PM ET
+2026-07-26,823194,ANA,SFN,Los Angeles Angels,San Francisco Giants,José Soriano,Carson Whisenhunt,0.5174021909484521,San Francisco Giants,0.5174021909484521,-107,4:05 PM ET
+2026-07-26,823433,NYA,PHI,New York Yankees,Philadelphia Phillies,Will Warren,Cristopher Sánchez,0.46609248861712876,New York Yankees,0.5339075113828713,115,7:20 PM ET

@@ -77,6 +77,7 @@ def upcoming(day: date) -> pd.DataFrame:
                 "home": TEAM_MAP.get(h["team"]["abbreviation"], h["team"]["abbreviation"]),
                 "away_name": a["team"]["name"], "home_name": h["team"]["name"],
                 "status": g["status"]["abstractGameState"],
+                "game_time": g.get("gameDate", ""),
                 "away_sp_name": (a.get("probablePitcher") or {}).get("fullName", "TBD"),
                 "home_sp_name": (h.get("probablePitcher") or {}).get("fullName", "TBD"),
             })
@@ -176,6 +177,12 @@ def score() -> None:
     m["correct"] = ((m.p_home_win >= 0.5).astype(int) == m.home_win).astype(int)
     ll = -np.mean(m.home_win * np.log(m.p_home_win.clip(1e-6, 1 - 1e-6))
                   + (1 - m.home_win) * np.log((1 - m.p_home_win).clip(1e-6, 1 - 1e-6)))
+
+    # Persist grades back into the forward log so the site can render them.
+    graded = m[["game_pk", "home_win", "correct"]]
+    merged = log.drop(columns=[c for c in ("home_win", "correct") if c in log.columns])
+    merged = merged.merge(graded, on="game_pk", how="left")
+    merged.to_csv(LOG, index=False)
     print(f"[score] {len(m)} graded  accuracy={m.correct.mean():.4f}  log_loss={ll:.4f}")
     print(f"[score] backtest expectation: accuracy~0.568  log_loss~0.678")
     hi = m[m.confidence >= 0.60]
@@ -211,6 +218,19 @@ def main() -> None:
 
     if not args.no_log:
         log_predictions(g)
+
+    # Snapshot for the static site
+    out = g.copy()
+    if "game_time" in out.columns:
+        t = pd.to_datetime(out["game_time"], errors="coerce", utc=True)
+        out["game_time"] = t.dt.tz_convert("US/Eastern").dt.strftime("%-I:%M %p ET")
+    cols = ["date", "game_pk", "away", "home", "away_name", "home_name",
+            "away_sp_name", "home_sp_name", "p_home_win", "pick", "confidence",
+            "fair_ml_home", "game_time"]
+    cols = [c for c in cols if c in out.columns]
+    REPORTS.mkdir(exist_ok=True)
+    out[cols].to_csv(REPORTS / "today.csv", index=False)
+    print(f"[predict] site snapshot -> reports/today.csv")
 
 
 if __name__ == "__main__":
