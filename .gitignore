@@ -1,4 +1,8 @@
-data/raw/statcast/
-data/proc/*.parquet
+# Raw data is regenerable: `python scripts/build_dataset.py` (~15s)
+# Retrosheet asks that their files not be redistributed without notice.
+data/raw/
+data/proc/
 __pycache__/
 *.pyc
+.DS_Store
+.venv/
