@@ -1,0 +1,13 @@
+date,game_pk,away,home,away_name,home_name,away_sp_name,home_sp_name,p_home_win,pick,confidence,fair_ml_home,predicted_at,model
+2026-07-27,822868,SEA,TEX,Seattle Mariners,Texas Rangers,George Kirby,Kumar Rocker,0.5040070235308299,Texas Rangers,0.5040070235308299,-102,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,824245,BAL,DET,Baltimore Orioles,Detroit Tigers,Kyle Bradish,Keider Montero,0.5250117257284445,Detroit Tigers,0.5250117257284445,-111,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,823353,AZ,PIT,Arizona Diamondbacks,Pittsburgh Pirates,Merrill Kelly,Mitch Keller,0.492845367671673,Arizona Diamondbacks,0.507154632328327,103,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,823839,PHI,MIA,Philadelphia Phillies,Miami Marlins,TBD,Tyler Phillips,0.564027047024989,Miami Marlins,0.564027047024989,-129,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,822705,TOR,WAS,Toronto Blue Jays,Washington Nationals,TBD,Andrew Alvarez,0.5469026460643157,Washington Nationals,0.5469026460643157,-121,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,824490,CLE,CIN,Cleveland Guardians,Cincinnati Reds,Slade Cecconi,Chase Burns,0.4988738407001197,Cleveland Guardians,0.5011261592998804,100,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,823597,ATL,NYN,Atlanta Braves,New York Mets,Martín Pérez,Zac Thornton,0.44702631113380964,Atlanta Braves,0.5529736888661904,124,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,824570,NYA,CHA,New York Yankees,Chicago White Sox,TBD,Noah Schultz,0.5209538366289141,Chicago White Sox,0.5209538366289141,-109,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,823025,CHN,SLN,Chicago Cubs,St. Louis Cardinals,David Peterson,TBD,0.4868519538425796,Chicago Cubs,0.5131480461574204,105,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,824001,HOU,ANA,Houston Astros,Los Angeles Angels,Tatsuya Imai,TBD,0.501141003996315,Los Angeles Angels,0.501141003996315,-100,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,824977,BOS,OAK,Boston Red Sox,Athletics,Payton Tolle,Jack Perkins,0.35028697321693664,Boston Red Sox,0.6497130267830633,185,2026-07-26T16:35:01Z,ensemble_log_gbm
+2026-07-27,823195,MIL,SFN,Milwaukee Brewers,San Francisco Giants,Brandon Sproat,TBD,0.47162383109494144,Milwaukee Brewers,0.5283761689050586,112,2026-07-26T16:35:01Z,ensemble_log_gbm

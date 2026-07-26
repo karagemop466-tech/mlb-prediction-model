@@ -1,0 +1,4 @@
+data/raw/statcast/
+data/proc/*.parquet
+__pycache__/
+*.pyc
