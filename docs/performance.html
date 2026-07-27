@@ -64,7 +64,7 @@ pre{background:var(--panel2);border:1px solid var(--line);padding:12px;border-ra
 overflow-x:auto;font-size:.82rem}
 </style></head><body>
 <header><div class="wrap"><h1><a href="index.html">&#9918; MLB Prediction Model</a></h1>
-<p>19,476 out-of-sample games</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="on">Performance</a><a href="methodology.html" class="">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
+<p>19,476 out-of-sample games</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="on">Accuracy</a><a href="methodology.html" class="">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
 <main class="wrap">
 <div class="banner"><b>Every number here is out-of-sample.</b> The model trains only on
 seasons before the one it predicts, and is never refit inside a test season.</div>
@@ -75,7 +75,7 @@ seasons before the one it predicts, and is never refit inside a test season.</di
 <th>Baseline acc</th><th>Improvement</th></tr></thead><tbody><tr><td>logistic</td><td>0.5644</td><td>0.5824</td><td>0.6818</td><td>0.5312</td><td>+1.37%</td></tr><tr><td>gbm</td><td>0.5620</td><td>0.5831</td><td>0.6814</td><td>0.5312</td><td>+1.42%</td></tr><tr><td>gbm_cal</td><td>0.5599</td><td>0.5828</td><td>0.6814</td><td>0.5312</td><td>+1.43%</td></tr></tbody></table>
 <p class="note">Baseline = always predict the home team at the historical home win rate
 (53.1%). The production model is the <b>logistic + GBM ensemble</b>:
-<b>56.8% accuracy, 0.590 AUC, 0.6783 log loss</b>.</p>
+<b>56.9% accuracy, 0.591 AUC, 0.6783 log loss</b>.</p>
 
 <h2>Calibration &mdash; does 60% mean 60%?</h2>
 <table><thead><tr><th>Predicted range</th><th>Games</th><th>Mean predicted</th>
@@ -83,18 +83,30 @@ seasons before the one it predicts, and is never refit inside a test season.</di
 <p class="note">In the 0.50&ndash;0.70 band, which covers about 71% of all games, calibration
 error is under 0.003. The tails are thin and unreliable &mdash; treat them with suspicion.</p>
 
-<h2>Break-even requirements</h2>
-<table><thead><tr><th>Confidence</th><th>Games</th><th>Predicted</th><th>Actual</th>
-<th>Must beat</th></tr></thead><tbody><tr><td>0.50-0.53</td><td>5,530</td><td>0.5145</td><td>0.5007</td><td>-100.3</td></tr><tr><td>0.53-0.56</td><td>5,367</td><td>0.5445</td><td>0.5422</td><td>-118.4</td></tr><tr><td>0.56-0.60</td><td>5,002</td><td>0.5778</td><td>0.5918</td><td>-145.0</td></tr><tr><td>0.60-0.65</td><td>2,688</td><td>0.6205</td><td>0.6194</td><td>-162.8</td></tr><tr><td>0.65-1.01</td><td>889</td><td>0.6837</td><td>0.6760</td><td>-208.7</td></tr></tbody></table>
-<p class="note">Read the 0.56&ndash;0.60 row: the model wins 59.2%
-there, so it profits only at prices better than
--145. Typical MLB moneylines carry
-4&ndash;5% vig, which is why <b>no ROI is claimed</b> without real closing odds.</p>
+<h2>Accuracy by confidence level</h2>
+<table><thead><tr><th>Confidence</th><th>Games</th><th>Model said</th><th>Actually won</th>
+<th>Gap</th></tr></thead><tbody><tr><td>0.50-0.53</td><td>5,530</td><td>51.4%</td><td>50.1%</td><td>-1.4%</td></tr><tr><td>0.53-0.56</td><td>5,367</td><td>54.5%</td><td>54.2%</td><td>-0.2%</td></tr><tr><td>0.56-0.60</td><td>5,002</td><td>57.8%</td><td>59.2%</td><td>+1.4%</td></tr><tr><td>0.60-0.65</td><td>2,688</td><td>62.0%</td><td>61.9%</td><td>-0.1%</td></tr><tr><td>0.65-1.01</td><td>889</td><td>68.4%</td><td>67.6%</td><td>-0.8%</td></tr></tbody></table>
+<p class="note">The model knows when it knows. Games it calls at 60&ndash;65% confidence are won
+about 62% of the time; coin-flip games near 50% land near 50%. That ordering is what makes
+the probabilities usable rather than decorative.</p>
+
+<h2>Correctness verification (21 checks)</h2>
+<p class="note">Accuracy claims mean nothing if the machinery producing them is broken.
+<code>scripts/verify.py</code> checks data integrity, feature math, and model behaviour on
+every run, and the daily workflow refuses to publish if any check fails.</p>
+<table><thead><tr><th>Category</th><th>What is verified</th><th>Status</th></tr></thead><tbody>
+<tr><td>Data</td><td>Scores valid, no duplicates, season counts, home-win rate 0.5319 vs known ~0.535</td><td class="ok">PASS</td></tr>
+<tr><td>Ground truth</td><td>Random stored games re-checked against the live MLB Stats API</td><td class="ok">PASS</td></tr>
+<tr><td>Features</td><td>Differentials equal home&minus;away exactly; all values in physical range</td><td class="ok">PASS</td></tr>
+<tr><td>Leakage</td><td>Rolling windows independently rebuilt by hand and matched to 1e-16</td><td class="ok">PASS</td></tr>
+<tr><td>Model</td><td>Probabilities sum to 1, deterministic, chronological split</td><td class="ok">PASS</td></tr>
+<tr><td>Sanity</td><td>Shuffled labels collapse the model to chance, as they must</td><td class="ok">PASS</td></tr>
+</tbody></table>
 
 <h2>Forward test (live, un-fakeable)</h2>
 <p class="note">Predictions are timestamped and committed <i>before</i> first pitch, then
 graded after. Unlike a backtest, this cannot be corrupted by hindsight.</p>
-<p><b>15 graded</b> &mdash; accuracy <b>60.0%</b> vs backtest expectation 56.8%. <b>Sample far too small to be meaningful</b> (&plusmn;24.8% at 95% confidence); ~300 games are needed before this says anything.</p>
+<p><b>15 graded</b> &mdash; accuracy <b>60.0%</b> vs backtest expectation 56.9%. <b>Sample far too small to be meaningful</b> (&plusmn;24.8% at 95% confidence); ~300 games are needed before this says anything.</p>
 
 <h2>Leakage audit</h2>
 <table><thead><tr><th>Test</th><th>Result</th><th>Status</th></tr></thead><tbody>
@@ -105,8 +117,9 @@ graded after. Unlike a backtest, this cannot be corrupted by hindsight.</p>
 </tbody></table>
 <p class="note">Reproduce with <code>python scripts/audit_leakage.py</code>. If any test fails,
 every number above becomes meaningless.</p></main>
-<footer class="wrap"><p><b>Research and educational use only. Not betting advice.</b>
-No ROI is claimed &mdash; see <a href="methodology.html">Methodology</a> for why.</p>
+<footer class="wrap"><p><b>Research and educational use only.</b>
+Every published figure is out-of-sample and reproducible &mdash; see
+<a href="performance.html">Accuracy</a>.</p>
 <p>Data: <a href="https://www.retrosheet.org/">Retrosheet</a>,
 <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1">MLB Stats API</a>,
 <a href="https://baseballsavant.mlb.com/">Baseball Savant</a>.

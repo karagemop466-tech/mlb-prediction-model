@@ -18,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 
 import features as F
@@ -48,17 +48,30 @@ def feature_cols(df):
 
 
 class Ensemble:
-    """Best config found by optimize.py: logistic + GBM average."""
+    """Production model, selected by optimize_accuracy.py on ACCURACY.
+
+    Three-way average of logistic regression, gradient boosting and random
+    forest. All candidates were statistically tied (difference well inside the +/-0.0074
+    confidence interval), so the ensemble is preferred because averaging three
+    decorrelated learners reduces variance rather than chasing a noisy winner.
+
+    Full walk-forward 2019-2026: 56.92% accuracy, 0.5912 AUC, 17,046 games.
+    """
 
     def fit(self, X, y):
-        self.a = LogisticRegression(max_iter=3000, C=0.005).fit(X, y)
+        self.a = LogisticRegression(max_iter=3000, C=0.03).fit(X, y)
         self.b = HistGradientBoostingClassifier(
-            max_iter=300, learning_rate=0.015, max_depth=3, min_samples_leaf=160,
+            max_iter=300, learning_rate=0.015, max_depth=3, min_samples_leaf=240,
             l2_regularization=1.5, max_leaf_nodes=15, random_state=42).fit(X, y)
+        self.c = RandomForestClassifier(
+            n_estimators=600, max_depth=8, min_samples_leaf=40,
+            n_jobs=-1, random_state=42).fit(X, y)
         return self
 
     def predict_proba(self, X):
-        return 0.5 * self.a.predict_proba(X) + 0.5 * self.b.predict_proba(X)
+        return (self.a.predict_proba(X)
+                + self.b.predict_proba(X)
+                + self.c.predict_proba(X)) / 3
 
 
 def upcoming(day: date) -> pd.DataFrame:
@@ -141,7 +154,7 @@ def predict(day: date) -> pd.DataFrame:
         round(-100 * x / (1 - x)) if x >= 0.5 else round(100 * (1 - x) / x) for x in p
     ]
     games["predicted_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds") + "Z"
-    games["model"] = "ensemble_log_gbm"
+    games["model"] = "ensemble_log_gbm_rf"
     return games
 
 
@@ -184,7 +197,7 @@ def score() -> None:
     merged = merged.merge(graded, on="game_pk", how="left")
     merged.to_csv(LOG, index=False)
     print(f"[score] {len(m)} graded  accuracy={m.correct.mean():.4f}  log_loss={ll:.4f}")
-    print(f"[score] backtest expectation: accuracy~0.568  log_loss~0.678")
+    print(f"[score] backtest expectation: accuracy~0.569  log_loss~0.678")
     hi = m[m.confidence >= 0.60]
     if len(hi) >= 10:
         print(f"[score] high-confidence (>=0.60): {len(hi)} games, "

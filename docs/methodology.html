@@ -64,11 +64,11 @@ pre{background:var(--panel2);border:1px solid var(--line);padding:12px;border-ra
 overflow-x:auto;font-size:.82rem}
 </style></head><body>
 <header><div class="wrap"><h1><a href="index.html">&#9918; MLB Prediction Model</a></h1>
-<p>How it works, honestly</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="">Performance</a><a href="methodology.html" class="on">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
+<p>How it works, honestly</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="">Accuracy</a><a href="methodology.html" class="on">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
 <main class="wrap">
 <h2>The honest headline</h2>
 <div class="banner"><b>No ROI is reported, and that is deliberate.</b> ROI is a property of a
-model <i>priced against a market</i>, not of a model alone. The same 56.8%-accurate
+model <i>priced against a market</i>, not of a model alone. The same 56.9%-accurate
 model loses money on &minus;150 favorites and profits on +120 underdogs. Free historical
 closing-odds archives are dead (SportsbookReviewsOnline returns HTML errors); working
 sources are paid. Rather than invent a number, the pipeline refuses to print one.</div>
@@ -78,7 +78,7 @@ sources are paid. Rather than invent a number, the pipeline refuses to print one
 <tr><td>Retrosheet game logs</td><td>22,764 games, 2016&ndash;2025</td><td>Historical record</td></tr>
 <tr><td>MLB Stats API</td><td>2026 season, live</td><td>Current + upcoming</td></tr>
 <tr><td>Baseball Savant Statcast</td><td>~2M pitches</td><td>Quality of contact</td></tr>
-<tr><td><b>Total</b></td><td><b>24,335 games</b></td><td>2016 &rarr; 2026-07-26</td></tr>
+<tr><td><b>Total</b></td><td><b>24,349 games</b></td><td>2016 &rarr; 2026-07-26</td></tr>
 </tbody></table>
 <p class="note">Sanity check: home win rate computes to <b>0.5319</b> against a published
 historical value near 0.535. A pipeline returning 0.60 or 0.48 would be broken.</p>
@@ -110,7 +110,7 @@ contributed variance rather than information. Reported rather than hidden &mdash
 kind of finding that makes the other numbers credible. Individual <i>pitcher</i>-level
 Statcast remains the most promising unexplored feature.</p>
 
-<h2>Why 56.8% is the ceiling</h2>
+<h2>Why 56.9% is the ceiling</h2>
 <p class="note">Published academic and industry MLB models cluster at 55&ndash;58% accuracy.
 Baseball is the least predictable of the major sports: the best team in a season still loses
 roughly 35% of its games, and a single starting pitcher caps how much any model can know.
@@ -136,8 +136,9 @@ Kelly staking, drawdown, CLV and an edge-threshold sweep activate automatically.
 (60 games, no fans) is anomalous and included. Statcast coverage is partial. Predictions
 use posted probable pitchers, which change. <b>This is a research tool. Never stake money
 you cannot afford to lose.</b></p></main>
-<footer class="wrap"><p><b>Research and educational use only. Not betting advice.</b>
-No ROI is claimed &mdash; see <a href="methodology.html">Methodology</a> for why.</p>
+<footer class="wrap"><p><b>Research and educational use only.</b>
+Every published figure is out-of-sample and reproducible &mdash; see
+<a href="performance.html">Accuracy</a>.</p>
 <p>Data: <a href="https://www.retrosheet.org/">Retrosheet</a>,
 <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1">MLB Stats API</a>,
 <a href="https://baseballsavant.mlb.com/">Baseball Savant</a>.

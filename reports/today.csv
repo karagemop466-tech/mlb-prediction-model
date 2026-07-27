@@ -1,16 +1,13 @@
 date,game_pk,away,home,away_name,home_name,away_sp_name,home_sp_name,p_home_win,pick,confidence,fair_ml_home,game_time
-2026-07-26,822950,CLE,TBA,Cleveland Guardians,Tampa Bay Rays,Parker Messick,Drew Rasmussen,0.5410418983495093,Tampa Bay Rays,0.5410418983495093,-118,12:15 PM ET
-2026-07-26,822706,AZ,WAS,Arizona Diamondbacks,Washington Nationals,Kohl Drake,Miles Mikolas,0.5194973343851776,Washington Nationals,0.5194973343851776,-108,1:35 PM ET
-2026-07-26,823354,CHN,PIT,Chicago Cubs,Pittsburgh Pirates,Jameson Taillon,Braxton Ashcraft,0.47861614317147744,Chicago Cubs,0.5213838568285225,109,1:35 PM ET
-2026-07-26,824730,TOR,BOS,Toronto Blue Jays,Boston Red Sox,Kevin Gausman,Ranger Suarez,0.5696505711597983,Boston Red Sox,0.5696505711597983,-132,1:35 PM ET
-2026-07-26,824810,ATL,BAL,Atlanta Braves,Baltimore Orioles,Reynaldo López,Shane Baz,0.5060280210211241,Baltimore Orioles,0.5060280210211241,-102,1:35 PM ET
-2026-07-26,824246,KCA,DET,Kansas City Royals,Detroit Tigers,Luinder Avila,Framber Valdez,0.5924377932812188,Detroit Tigers,0.5924377932812188,-145,1:40 PM ET
-2026-07-26,823599,LAN,NYN,Los Angeles Dodgers,New York Mets,Emmet Sheehan,Freddy Peralta,0.39815982971886776,Los Angeles Dodgers,0.6018401702811322,151,1:40 PM ET
-2026-07-26,823840,SDN,MIA,San Diego Padres,Miami Marlins,Walker Buehler,Janson Junk,0.5586021869915646,Miami Marlins,0.5586021869915646,-127,1:40 PM ET
-2026-07-26,823678,OAK,MIN,Athletics,Minnesota Twins,Jeffrey Springs,Connor Prielipp,0.572821752395601,Minnesota Twins,0.572821752395601,-134,2:10 PM ET
-2026-07-26,824572,HOU,CHA,Houston Astros,Chicago White Sox,Ronel Blanco,Erick Fedde,0.5619304061267734,Chicago White Sox,0.5619304061267734,-128,2:10 PM ET
-2026-07-26,823755,COL,MIL,Colorado Rockies,Milwaukee Brewers,Kyle Freeland,Jacob Misiorowski,0.6227248366025637,Milwaukee Brewers,0.6227248366025637,-165,2:10 PM ET
-2026-07-26,823028,CIN,SLN,Cincinnati Reds,St. Louis Cardinals,Andrew Abbott,Kyle Leahy,0.5634886150550047,St. Louis Cardinals,0.5634886150550047,-129,2:15 PM ET
-2026-07-26,822870,SEA,TEX,Seattle Mariners,Texas Rangers,Logan Gilbert,Jacob deGrom,0.5043530168157735,Texas Rangers,0.5043530168157735,-102,2:35 PM ET
-2026-07-26,823194,ANA,SFN,Los Angeles Angels,San Francisco Giants,José Soriano,Carson Whisenhunt,0.5174021909484521,San Francisco Giants,0.5174021909484521,-107,4:05 PM ET
-2026-07-26,823433,NYA,PHI,New York Yankees,Philadelphia Phillies,Will Warren,Cristopher Sánchez,0.46609248861712876,New York Yankees,0.5339075113828713,115,7:20 PM ET
+2026-07-27,822868,SEA,TEX,Seattle Mariners,Texas Rangers,George Kirby,Kumar Rocker,0.49753031213085164,Seattle Mariners,0.5024696878691484,101,2:35 PM ET
+2026-07-27,824245,BAL,DET,Baltimore Orioles,Detroit Tigers,Kyle Bradish,Keider Montero,0.5391483988894566,Detroit Tigers,0.5391483988894566,-117,6:40 PM ET
+2026-07-27,823353,AZ,PIT,Arizona Diamondbacks,Pittsburgh Pirates,Merrill Kelly,Mitch Keller,0.5215319950106303,Pittsburgh Pirates,0.5215319950106303,-109,6:40 PM ET
+2026-07-27,823839,PHI,MIA,Philadelphia Phillies,Miami Marlins,Zack Wheeler,Tyler Phillips,0.5188972494014563,Miami Marlins,0.5188972494014563,-108,6:40 PM ET
+2026-07-27,822705,TOR,WAS,Toronto Blue Jays,Washington Nationals,Max Scherzer,Andrew Alvarez,0.5395281820049481,Washington Nationals,0.5395281820049481,-117,6:45 PM ET
+2026-07-27,824490,CLE,CIN,Cleveland Guardians,Cincinnati Reds,Slade Cecconi,Chase Burns,0.4926559655665262,Cleveland Guardians,0.5073440344334739,103,7:10 PM ET
+2026-07-27,823597,ATL,NYN,Atlanta Braves,New York Mets,Martín Pérez,Zac Thornton,0.46434247152248936,Atlanta Braves,0.5356575284775107,115,7:10 PM ET
+2026-07-27,824570,NYA,CHA,New York Yankees,Chicago White Sox,Max Fried,Noah Schultz,0.5452404769738414,Chicago White Sox,0.5452404769738414,-120,7:40 PM ET
+2026-07-27,823025,CHN,SLN,Chicago Cubs,St. Louis Cardinals,David Peterson,TBD,0.490273657425685,Chicago Cubs,0.509726342574315,104,7:45 PM ET
+2026-07-27,824001,HOU,ANA,Houston Astros,Los Angeles Angels,Tatsuya Imai,Walbert Ureña,0.5081632312653223,Los Angeles Angels,0.5081632312653223,-103,9:38 PM ET
+2026-07-27,824977,BOS,OAK,Boston Red Sox,Athletics,Payton Tolle,Jack Perkins,0.3941065522126443,Boston Red Sox,0.6058934477873557,154,9:40 PM ET
+2026-07-27,823195,MIL,SFN,Milwaukee Brewers,San Francisco Giants,Brandon Sproat,Tyler Mahle,0.4301691358930427,Milwaukee Brewers,0.5698308641069574,132,9:45 PM ET

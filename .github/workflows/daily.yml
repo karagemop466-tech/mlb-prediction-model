@@ -51,17 +51,20 @@ jobs:
       - name: Leakage audit (blocks deploy on failure)
         run: python scripts/audit_leakage.py
 
+      - name: Correctness verification (blocks deploy on failure)
+        run: python scripts/verify.py
+
       - name: Grade previously logged predictions
         run: python scripts/predict.py --score || true
 
       - name: Predict today's slate
         run: python scripts/predict.py
 
-      - name: Full backtest (manual runs only)
+      - name: Full backtest + accuracy search (manual runs only)
         if: github.event.inputs.full_backtest == 'true'
         run: |
           python scripts/backtest.py
-          python scripts/roi.py
+          python scripts/optimize_accuracy.py
 
       - name: Build site
         run: python scripts/build_site.py
