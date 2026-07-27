@@ -194,6 +194,49 @@ def build() -> pd.DataFrame:
         got = wide[f"h_{sc_cols[0]}"].notna().sum() if sc_cols else 0
         print(f"[features] statcast merged: {got:,} games have Statcast coverage")
 
+    # --- Optional PITCHER-level Statcast (rolling prior starts only)
+    #
+    # TESTED AND NOT SHIPPED. Across 7,939 games (2023-2026) these 24 features
+    # moved accuracy by -0.0001 and AUC by +0.0023, both far inside the +/-1.09%
+    # confidence interval. See reports/experiment_pitcher_statcast.json.
+    # Set MLB_USE_SP_STATCAST=1 to enable for further research.
+    import os
+    if os.environ.get("MLB_USE_SP_STATCAST") != "1":
+        psc_path = None
+    else:
+        psc_path = PROC / "pitcher_statcast.parquet"
+    xw_path = ROOT / "data" / "raw" / "ref" / "crosswalk.parquet"
+    if psc_path is not None and psc_path.exists() and xw_path.exists():
+        psc = pd.read_parquet(psc_path)
+        psc["date"] = pd.to_datetime(psc["date"])
+        xw = pd.read_parquet(xw_path)[["key_mlbam", "key_retro"]]
+        psc = psc.merge(xw, left_on="mlbam", right_on="key_mlbam", how="left")
+        pcols = [c for c in psc.columns if c.startswith("sp_")]
+
+        # Retrosheet seasons store retro IDs in home_sp/away_sp; the live MLB API
+        # seasons (2026+) store MLBAM IDs. Build a key covering BOTH so recent
+        # games are not silently dropped.
+        retro = psc[psc.key_retro.notna()].copy()
+        retro["sp_key"] = retro["key_retro"].astype(str)
+        mlbam = psc.copy()
+        mlbam["sp_key"] = mlbam["mlbam"].astype(int).astype(str)
+        psc = pd.concat([retro, mlbam], ignore_index=True)
+        psc = psc.drop_duplicates(subset=["date", "sp_key"], keep="first")
+
+        h = psc.rename(columns={"sp_key": "home_sp",
+                                **{c: f"h_{c}" for c in pcols}})
+        a = psc.rename(columns={"sp_key": "away_sp",
+                                **{c: f"a_{c}" for c in pcols}})
+        keep_h = ["date", "home_sp"] + [f"h_{c}" for c in pcols]
+        keep_a = ["date", "away_sp"] + [f"a_{c}" for c in pcols]
+        wide = wide.merge(h[keep_h], on=["date", "home_sp"], how="left")
+        wide = wide.merge(a[keep_a], on=["date", "away_sp"], how="left")
+        for c in pcols:
+            if f"h_{c}" in wide.columns and f"a_{c}" in wide.columns:
+                wide[f"d_{c}"] = wide[f"h_{c}"] - wide[f"a_{c}"]
+        got = wide[f"h_{pcols[0]}"].notna().sum() if pcols else 0
+        print(f"[features] pitcher statcast merged: {got:,} games have SP coverage")
+
     wide["month"] = wide["date"].dt.month
     wide["dow"] = wide["date"].dt.dayofweek
     wide["is_night"] = (wide["daynight"] == "N").astype(int)

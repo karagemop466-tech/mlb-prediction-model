@@ -334,12 +334,21 @@ determine betting value while raw accuracy does not.</p>
 <p class="note">The full spread across all 24 configurations was 0.6783&ndash;0.6813, a range
 of 0.4%. That tightness is the signal ceiling of the sport, not a tuning failure.</p>
 
-<h2>A real negative result</h2>
-<p class="note">Statcast <b>slightly hurt</b> performance (log loss 0.67743 &rarr; 0.67772 when
-added). Team-level quality-of-contact is already embedded in run differential, so it
-contributed variance rather than information. Reported rather than hidden &mdash; it is the
-kind of finding that makes the other numbers credible. Individual <i>pitcher</i>-level
-Statcast remains the most promising unexplored feature.</p>
+<h2>Two real negative results</h2>
+<p class="note"><b>1. Team-level Statcast slightly hurt</b> (log loss 0.67743 &rarr; 0.67772).
+Team quality-of-contact is already embedded in run differential, so it contributed variance
+rather than information.</p>
+<p class="note"><b>2. Individual starting-pitcher Statcast did not help either.</b> This was
+the most promising remaining idea, so it got a full test: 3.4M pitches downloaded, 23,582
+starts aggregated, 24 features built (rolling 10-start xwOBA-against, exit velocity, barrel
+rate, hard-hit rate, whiff rate, K rate, BB rate). Across <b>7,939 games in 2023&ndash;2026</b>
+with both starters known, accuracy moved <b>&minus;0.0001</b> and AUC <b>+0.0023</b> &mdash;
+both far inside the &plusmn;1.09% confidence interval. The starter's recent contact profile is
+largely redundant with the team run-prevention features already in the model. The code ships
+in the repo behind a flag so the experiment is reproducible, but it is <b>not</b> in the
+production model.</p>
+<p class="note">Reported rather than hidden. A project that only publishes the features that
+worked is telling you half the truth.</p>
 
 <h2>Why {meta['accuracy']:.1%} is the ceiling</h2>
 <p class="note">Published academic and industry MLB models cluster at 55&ndash;58% accuracy.

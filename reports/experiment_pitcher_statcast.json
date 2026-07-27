@@ -1,0 +1,45 @@
+{
+  "experiment": "individual starting-pitcher Statcast features",
+  "hypothesis": "starter contact-quality profile adds signal beyond team form",
+  "features_added": 24,
+  "feature_list": [
+    "sp_xwoba_against_10",
+    "sp_ev_against_10",
+    "sp_barrel_rate_10",
+    "sp_hardhit_rate_10",
+    "sp_whiff_rate_10",
+    "sp_k_rate_10",
+    "sp_bb_rate_10",
+    "sp_career_starts"
+  ],
+  "data": {
+    "pitch_rows_downloaded": 3386610,
+    "starts_aggregated": 23582,
+    "starts_with_rolling_history": 21545,
+    "games_with_both_starters": 7939,
+    "seasons_tested": [
+      2023,
+      2024,
+      2025,
+      2026
+    ]
+  },
+  "result": {
+    "base_accuracy": 0.557,
+    "with_sp_accuracy": 0.5569,
+    "delta_accuracy": -0.0001,
+    "base_auc": 0.5768,
+    "with_sp_auc": 0.579,
+    "delta_auc": 0.0023,
+    "ci95_accuracy": 0.0109,
+    "n": 7939
+  },
+  "verdict": "WITHIN NOISE - not shipped to production",
+  "interpretation": "Rolling 10-start contact quality is largely redundant with the team run-prevention and SP run-support features already present. AUC improved very slightly (+0.0023) which hints at marginal ranking information, but accuracy did not move and the change is far inside the +/-1.09% confidence interval. Shipping it would add 24 features and a fragile ID crosswalk for no measurable accuracy gain.",
+  "bugs_found_and_fixed": [
+    "aggregate() OOM-killed silently on 3.4M pitch rows; rewrote to reduce each cached chunk to pitcher-game rows before concatenating",
+    "Savant CSV endpoint hard-caps at 25,000 rows and truncates without error; added cap detection with recursive window splitting",
+    "2026 rows key starters by MLBAM ID while Retrosheet seasons use retro IDs; merge silently dropped all 2026 coverage until keyed on both"
+  ],
+  "kept": "scripts/pitcher_statcast.py and the Chadwick crosswalk remain in the repo so the experiment is reproducible and can be revisited with matchup-specific features (platoon splits, lineup-vs-pitch-type), which this test did not cover."
+}

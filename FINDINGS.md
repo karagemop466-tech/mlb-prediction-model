@@ -81,7 +81,7 @@ The spread across all 24 configs was 0.6783–0.6813 — a 0.4% range. That tigh
 is the signal ceiling asserting itself, not a tuning failure. More tuning will
 not break through it; better *features* might, marginally.
 
-### Statcast — a real negative result
+### Statcast — two negative results
 
 I aggregated ~2M pitches into rolling 30-game team xwOBA, exit velocity, barrel%
 and hard-hit%. Values validated against known MLB norms (xwOBA .369, barrel 4.2%,
@@ -99,9 +99,28 @@ quality-of-contact is already embedded in run differential; adding it contribute
 variance, not information. Reporting this rather than hiding it — it's the kind
 of result that makes the rest of the numbers credible.
 
-Statcast would more plausibly help at the **individual pitcher** level
-(starter xwOBA-against vs. that specific lineup), which is the top item on the
-roadmap below.
+**Pitcher-level Statcast was then tested too, and also failed.**
+
+This was the top roadmap item, so it got a full build: 3.4M pitches, 23,582
+starts, 24 rolling-10-start features (xwOBA-against, EV, barrel%, hard-hit%,
+whiff%, K%, BB%), joined via the Chadwick Bureau ID crosswalk.
+
+| Feature set | Accuracy | AUC |
+|---|---|---|
+| Base (115 features) | 0.5570 | 0.5768 |
+| Base + pitcher Statcast (139) | 0.5569 | 0.5790 |
+
+Across **7,939 games (2023-2026)** with both starters known: accuracy
+**-0.0001**, AUC **+0.0023**, both far inside the +/-1.09% CI. Not shipped.
+Enable with `MLB_USE_SP_STATCAST=1` for further research.
+
+Three real bugs surfaced during this experiment and were fixed:
+1. `aggregate()` was **silently OOM-killed** on 3.4M rows, producing truncated
+   output with no error. Rewritten to reduce each chunk before concatenating.
+2. Savant's CSV endpoint **hard-caps at 25,000 rows and truncates without
+   warning**. Added cap detection with recursive window splitting.
+3. 2026 games key starters by MLBAM ID while Retrosheet seasons use retro IDs;
+   the merge **silently dropped all 2026 coverage** until keyed on both.
 
 ### Calibration — the part that actually matters for betting
 

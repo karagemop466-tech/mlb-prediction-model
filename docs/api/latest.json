@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-07-27 04:30 UTC",
+  "generated_at_utc": "2026-07-27 18:15 UTC",
   "model": "ensemble_log_gbm_rf",
   "backtest": {
     "accuracy": 0.5692,
@@ -78,7 +78,7 @@
       "away_name": "Toronto Blue Jays",
       "home_name": "Washington Nationals",
       "away_sp_name": "Max Scherzer",
-      "home_sp_name": "Andrew Alvarez",
+      "home_sp_name": "Eddy Yean",
       "p_home_win": 0.539528182,
       "pick": "Washington Nationals",
       "confidence": 0.539528182,
