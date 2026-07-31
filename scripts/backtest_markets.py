@@ -26,7 +26,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassif
 from sklearn.linear_model import LogisticRegression
 
 import simulate as S
-from total_model import SideModel, feature_cols as tm_feature_cols
+from total_model import SideModel, feature_cols as tm_feature_cols, load_weather
 
 ROOT = Path(__file__).resolve().parent.parent
 PROC = ROOT / "data" / "proc"
@@ -102,8 +102,10 @@ def calib_curve(p: np.ndarray, y: np.ndarray, bins: int = 8) -> list[dict]:
 
 def run(start_season: int = 2019) -> dict:
     df = pd.read_parquet(PROC / "features.parquet").sort_values("date")
+    df = load_weather(df)
     df = df.dropna(subset=["home_win"]).reset_index(drop=True)
     fc = feature_cols(df)
+    fc_wx = tm_feature_cols(df)
     league_total = float((df.home_score + df.away_score).mean())
 
     seasons = [s for s in sorted(df.season.unique()) if s >= start_season]
@@ -122,8 +124,13 @@ def run(start_season: int = 2019) -> dict:
         p_win = model.predict_proba(Xte_s)[:, 1]
 
         # Side-specific expected runs, trained on the SAME prior seasons only.
-        side = SideModel(0.85).fit(Xtr_s, tr.home_score.values, tr.away_score.values)
-        eh, ea = side.predict(Xte_s)
+        # Run model uses weather; the win classifier does not (tested, rejected).
+        medw = tr[fc_wx].median()
+        Xtw, Xew = tr[fc_wx].fillna(medw).values, te[fc_wx].fillna(medw).values
+        muw, sdw = Xtw.mean(0), Xtw.std(0) + 1e-9
+        side = SideModel(0.85).fit((Xtw - muw) / sdw,
+                                   tr.home_score.values, tr.away_score.values)
+        eh, ea = side.predict((Xew - muw) / sdw)
 
         rng = np.random.default_rng(int(s))
         preds = {k: np.zeros(len(te)) for k in

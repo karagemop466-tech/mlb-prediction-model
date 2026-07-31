@@ -33,12 +33,40 @@ PROC = ROOT / "data" / "proc"
 REPORTS = ROOT / "reports"
 
 
+# Weather variables that earned their place by walk-forward ablation on total
+# runs (see reports/weather_research.json):
+#     density only        +0.0196 correlation
+#     density + wind      +0.0236
+#     all weather         +0.0251   <- shipped
+#     gusts only          +0.0039   (kept: cheap, and part of "everything")
+# Weather is used for RUN prediction only. It was tested on home-win accuracy
+# and rejected (-0.0009, inside the +/-0.0083 noise bar).
+WEATHER_COLS = [
+    "air_density_index", "temp_f", "humidity", "pressure_hpa",
+    "wind_out", "wind_cross", "gust_out", "gust_excess",
+    "dew_point_f", "cloud_cover", "precip", "is_closed",
+]
+
+
+def load_weather(df: pd.DataFrame) -> pd.DataFrame:
+    """Attach game-level weather if it has been built."""
+    path = PROC / "weather_games.parquet"
+    if not path.exists() or "game_id" not in df.columns:
+        return df
+    wx = pd.read_parquet(path)
+    keep = ["game_id"] + [c for c in WEATHER_COLS if c in wx.columns]
+    return df.merge(wx[keep], on="game_id", how="left")
+
+
 def feature_cols(df: pd.DataFrame) -> list[str]:
     drop = {"home_win", "total_runs", "home_score", "away_score", "season",
             "month", "dow"}
-    return [c for c in df.columns
+    cols = [c for c in df.columns
             if c.startswith(("h_", "a_", "d_"))
             and c not in drop and df[c].dtype.kind in "fi"]
+    cols += [c for c in WEATHER_COLS
+             if c in df.columns and df[c].dtype.kind in "fi"]
+    return cols
 
 
 class TotalModel:
@@ -86,6 +114,7 @@ def heuristic_total(row, league_mean: float) -> float:
 def walk_forward(seasons=(2021, 2022, 2023, 2024, 2025, 2026),
                  shrink: float = 0.75) -> dict:
     df = pd.read_parquet(PROC / "features.parquet").sort_values("date")
+    df = load_weather(df)
     df = df.dropna(subset=["home_win"]).reset_index(drop=True)
     df["total"] = df.home_score + df.away_score
     fc = feature_cols(df)
@@ -169,6 +198,7 @@ class SideModel:
 
 def fit_side_production(shrink: float = 0.85):
     df = pd.read_parquet(PROC / "features.parquet").sort_values("date")
+    df = load_weather(df)
     df = df.dropna(subset=["home_win"])
     fc = feature_cols(df)
     med = df[fc].median()
@@ -182,6 +212,7 @@ def fit_side_production(shrink: float = 0.85):
 def fit_production(shrink: float = 0.75):
     """Fit on all available data, for live prediction."""
     df = pd.read_parquet(PROC / "features.parquet").sort_values("date")
+    df = load_weather(df)
     df = df.dropna(subset=["home_win"])
     df["total"] = df.home_score + df.away_score
     fc = feature_cols(df)

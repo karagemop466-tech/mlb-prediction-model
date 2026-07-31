@@ -390,3 +390,138 @@ home scoring twice — P(home win) fell from 0.528 to 0.519. Replaced with the
 **Net gain from the session:** refitting with a new `LEVEL_SCALE` parameter cut
 fit loss from 0.772 to **0.645**, the best so far. E[total] error fell to +0.05
 runs and margin variance to within 5%.
+
+---
+
+## Weather integration (2026-07-31)
+
+### Data sources — both verified, neither assumed
+
+| Source | Provides | Coverage |
+|---|---|---|
+| Open-Meteo ERA5 archive | temp, humidity, **surface pressure**, wind speed/direction, **gusts**, hourly | 96.4% of games |
+| MLB Stats API weather | stadium-relative wind ("12 mph, Out To CF"), roof status | 100% |
+| MLB Stats API venues | **azimuthAngle**, elevation, roof type, lat/lon | 33 parks |
+
+Surface pressure is the critical field: it encodes elevation physically (Coors
+~848 hPa vs ~1013 at sea level). Sea-level-adjusted pressure would erase the
+largest weather effect in baseball.
+
+**A unit bug caught by cross-validation.** The MLB venue API labels its field
+`elevation`, but the values are **feet**, not meters — Coors reads 5190. Open-Meteo
+independently returns 1582 m for the same coordinates, and 5190 ft = 1582 m.
+Using the API value as meters would have inflated Coors' air-density effect 3.3x.
+Open-Meteo's elevation is used as the authority.
+
+### Physics
+
+Air density from temperature, humidity and pressure via partial pressures:
+
+    rho = Pd/(Rd*T) + Pv/(Rv*T)
+
+Validated against the reference value: ISA sea level returns **1.2250 kg/m³**.
+Note humid air is **less** dense than dry air at equal T and P (water vapour is
+18 g/mol vs ~29 for dry air) — the opposite of the common intuition.
+
+Wind is projected onto each park's plate-to-CF axis using the venue azimuth.
+Meteorological direction is where wind comes FROM, so a wind blowing out to
+center arrives from bearing `azimuth + 180`:
+
+    out_component = speed * cos(wind_from - (azimuth + 180))
+
+**Independent cross-validation** against MLB's own stadium-relative readings:
+temperature r = **0.952** (MAE 2.97°F), wind out-component r = **0.614** with
+**78.1% sign agreement**, and every MLB label ("Out To CF", "In From LF", ...)
+lands with the correct sign and correct ordering.
+
+### Correlations with total runs (20,049 open-air games)
+
+| Variable | r | p |
+|---|---|---|
+| **air_density_index** | **−0.144** | 1e-93 |
+| pressure | −0.115 | 5e-60 |
+| elevation | +0.108 | 4e-53 |
+| temperature | +0.102 | 4e-47 |
+| humidity | −0.081 | 1e-30 |
+| wind_out | +0.018 | 0.011 |
+| gust_excess | +0.005 | 0.45 |
+
+The composite density index beats every individual component, confirming the
+physics is the right construction rather than a curve fit.
+
+**Is it just Coors?** No. Excluding all high-elevation parks the correlation is
+still −0.101 (p=7e-45). De-meaning by venue — which removes park identity
+entirely — leaves **−0.087** (p=4e-35). This is genuine weather, not a park proxy.
+
+Effect sizes, within park:
+
+- **−0.94 runs** per 0.05 air-density index
+- **+0.35 runs** per 10°F
+- **+0.18 runs** per 5 mph of wind blowing out
+
+Air-density deciles span **+0.68 to −0.78 runs** versus the same park's average —
+a 1.45-run swing, monotonic across all ten deciles.
+
+### The gust hypothesis: tested and rejected
+
+The hypothesis was that gusts act as a high-variance, localized effect. Tested
+directly with Levene's test for unequal variance across gust quintiles:
+
+| Measure | Levene W | p | Verdict |
+|---|---|---|---|
+| gust_excess (gust − sustained) | 0.721 | 0.58 | no effect |
+| gust_ratio (gust / sustained) | 0.882 | 0.47 | no effect |
+| gust_out (directional) | 0.114 | 0.98 | no effect |
+
+Run variance is flat at 20.4–21.4 across every quintile. Gusts do **not**
+measurably change either the mean or the variance of scoring. Included in the
+feature set (they cost nothing) but they carry no signal.
+
+### Moneyline and run line
+
+- **Moneyline: no usable effect.** Best correlation with a home win is air
+  density at r = +0.016 (p=0.02), which is negligible. Added to the win
+  classifier, weather moved accuracy by **−0.0009** against a ±0.0083 noise bar —
+  correctly REJECTED by the research gate.
+- **Run line: real but small.** Air density correlates −0.042 (p=2e-09) with
+  |margin| — thin air widens margins. Kept via the run model.
+
+### Model impact
+
+Weather is used for **run prediction only**, never for the win classifier.
+
+| Target | Before | After | Change |
+|---|---|---|---|
+| Expected total (corr) | 0.1338 | **0.1569** | **+17%** |
+| Home win accuracy | 0.5655 | 0.5646 | rejected |
+
+Ablation on total runs shows where the value is:
+
+| Feature family | Δ correlation |
+|---|---|
+| density only | +0.0196 |
+| raw thermo (T, RH, P) | +0.0186 |
+| density + wind | +0.0236 |
+| **everything** | **+0.0251** |
+| wind only | +0.0031 |
+| gusts only | +0.0039 |
+
+Market skill, walk-forward on 17,112 games:
+
+| Market | Before | After |
+|---|---|---|
+| **over/under 8.5** | +0.0051 | **+0.0097** |
+| **win AND under** | +0.0085 | **+0.0103** |
+| **win AND over** | +0.0074 | **+0.0092** |
+| margin ≥ 3 | −0.0001 | +0.0009 |
+| home win by 1 | −0.0007 | +0.0002 |
+
+Totals skill has now roughly **6x'd** across two sessions (+0.0015 → +0.0097).
+
+Roughly 14.2% of games are under a closed roof or dome; all wind terms are
+zeroed and flagged for those, so outdoor conditions are never attributed to
+indoor games.
+
+Weather correctness suite: **28/28** (`scripts/verify_weather.py`), including
+physics checks against published reference values, projection geometry
+identities, and the independent MLB cross-check.

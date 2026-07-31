@@ -24,7 +24,9 @@ from sklearn.linear_model import LogisticRegression
 import features as F
 import simulate as SIM
 import pricing as PRICE
-from total_model import SideModel
+from total_model import SideModel, WEATHER_COLS, load_weather
+from weather import (density_index, fetch_forecast, wind_cross_component,
+                     wind_out_component)
 
 ROOT = Path(__file__).resolve().parent.parent
 PROC = ROOT / "data" / "proc"
@@ -77,9 +79,68 @@ class Ensemble:
                 + self.c.predict_proba(X)) / 3
 
 
+def live_weather(games: pd.DataFrame) -> pd.DataFrame:
+    """Attach forecast weather to today's slate, keyed on venue + first pitch."""
+    vpath = PROC / "venues.json"
+    if not vpath.exists():
+        for c in WEATHER_COLS:
+            games[c] = np.nan
+        return games
+    venues = json.loads(vpath.read_text())
+    by_name = {v["name"]: v for v in venues.values()}
+
+    rows = []
+    cache: dict[int, pd.DataFrame] = {}
+    for _, g in games.iterrows():
+        v = by_name.get(g.get("venue_name"))
+        rec = {c: np.nan for c in WEATHER_COLS}
+        if v and v.get("lat") is not None:
+            vid = v["id"]
+            if vid not in cache:
+                cache[vid] = fetch_forecast(v["lat"], v["lon"], v["tz"])
+            hourly = cache[vid]
+            closed = 1 if v.get("roof") == "Dome" else 0
+            if hourly is not None and not hourly.empty:
+                t = pd.to_datetime(g.get("game_time"), errors="coerce", utc=True)
+                target = None
+                if pd.notna(t):
+                    try:
+                        target = t.tz_convert(v["tz"]).tz_localize(None)
+                    except Exception:
+                        target = None
+                if target is None:
+                    target = pd.Timestamp(g["date"]).replace(hour=19)
+                idx = (hourly["time"] - target).abs().idxmin()
+                r = hourly.loc[idx]
+                az = v.get("azimuth")
+                temp = float(r["temperature_2m"]); rh = float(r["relative_humidity_2m"])
+                pres = float(r["surface_pressure"]); wspd = float(r["wind_speed_10m"])
+                wdir = float(r["wind_direction_10m"]); gust = float(r["wind_gusts_10m"])
+                rec.update({
+                    "temp_f": temp, "humidity": rh, "pressure_hpa": pres,
+                    "dew_point_f": float(r.get("dew_point_2m", np.nan)),
+                    "precip": float(r.get("precipitation", 0) or 0),
+                    "cloud_cover": float(r.get("cloud_cover", np.nan)),
+                    "air_density_index": density_index(temp, rh, pres),
+                    "wind_out": wind_out_component(wdir, wspd, az) if az is not None else np.nan,
+                    "wind_cross": wind_cross_component(wdir, wspd, az) if az is not None else np.nan,
+                    "gust_out": wind_out_component(wdir, gust, az) if az is not None else np.nan,
+                    "gust_excess": gust - wspd,
+                    "is_closed": closed,
+                })
+                if closed:
+                    for c in ("wind_out", "wind_cross", "gust_out", "gust_excess"):
+                        rec[c] = 0.0
+        rows.append(rec)
+    wxdf = pd.DataFrame(rows, index=games.index)
+    for c in WEATHER_COLS:
+        games[c] = wxdf[c]
+    return games
+
+
 def upcoming(day: date) -> pd.DataFrame:
     url = (f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={day.isoformat()}"
-           f"&gameType=R&hydrate=probablePitcher,team")
+           f"&gameType=R&hydrate=probablePitcher,team,venue")
     req = urllib.request.Request(url, headers={"User-Agent": "research/1.0"})
     data = json.loads(urllib.request.urlopen(req, timeout=60).read())
     rows = []
@@ -94,6 +155,7 @@ def upcoming(day: date) -> pd.DataFrame:
                 "away_name": a["team"]["name"], "home_name": h["team"]["name"],
                 "status": g["status"]["abstractGameState"],
                 "game_time": g.get("gameDate", ""),
+                "venue_name": (g.get("venue") or {}).get("name"),
                 "away_sp_name": (a.get("probablePitcher") or {}).get("fullName", "TBD"),
                 "home_sp_name": (h.get("probablePitcher") or {}).get("fullName", "TBD"),
             })
@@ -136,6 +198,11 @@ def predict(day: date) -> pd.DataFrame:
     feat = feat.dropna(subset=["home_win"])
     fc = feature_cols(feat)
 
+    # Separate frame for the run model, which DOES use weather.
+    feat_wx = load_weather(feat)
+    from total_model import feature_cols as tm_cols
+    fc_wx = tm_cols(feat_wx)
+
     med = feat[fc].median()
     Xtr = feat[fc].fillna(med).values
     mu, sd = Xtr.mean(0), Xtr.std(0) + 1e-9
@@ -143,7 +210,11 @@ def predict(day: date) -> pd.DataFrame:
     model = Ensemble().fit(Xtr_s, feat["home_win"].values)
     # Side-specific expected runs, so totals reflect the actual matchup rather
     # than being implied by the win probability alone.
-    side = SideModel(0.85).fit(Xtr_s, feat.home_score.values, feat.away_score.values)
+    med_wx = feat_wx[fc_wx].median()
+    Xw = feat_wx[fc_wx].fillna(med_wx).values
+    mu_w, sd_w = Xw.mean(0), Xw.std(0) + 1e-9
+    side = SideModel(0.85).fit((Xw - mu_w) / sd_w,
+                               feat_wx.home_score.values, feat_wx.away_score.values)
 
     games = upcoming(day)
     if games.empty:
@@ -153,7 +224,15 @@ def predict(day: date) -> pd.DataFrame:
     X = build_matchup_rows(games, feat, fc).fillna(med).values
     Xs = (X - mu) / sd
     p = model.predict_proba(Xs)[:, 1]
-    exp_h, exp_a = side.predict(Xs)
+
+    # Live forecast weather for the run model.
+    games = live_weather(games)
+    Xrow = build_matchup_rows(games, feat, fc)
+    for c in WEATHER_COLS:
+        if c in fc_wx:
+            Xrow[c] = games[c].values
+    Xw_live = Xrow.reindex(columns=fc_wx).fillna(med_wx).values
+    exp_h, exp_a = side.predict((Xw_live - mu_w) / sd_w)
 
     games["p_home_win"] = p
     games["p_away_win"] = 1 - p
@@ -318,7 +397,9 @@ def main() -> None:
             "p_over_8_5", "p_over_9_5", "p_one_run", "p_extras",
             "p_home_by_1", "p_away_by_1", "p_home_win_and_over",
             "p_away_win_and_over", "p_both_score", "p_margin_ge3",
-            "exp_total", "exp_home_runs", "exp_away_runs"]
+            "exp_total", "exp_home_runs", "exp_away_runs",
+            "temp_f", "humidity", "air_density_index", "wind_out",
+            "gust_out", "is_closed"]
     cols = [c for c in cols if c in out.columns]
     REPORTS.mkdir(exist_ok=True)
     out[cols].to_csv(REPORTS / "today.csv", index=False)
