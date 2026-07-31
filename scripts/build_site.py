@@ -442,6 +442,26 @@ skill. Structural markets like one-run games and extra innings are <i>calibrated
 by one run is close to irreducible noise. Reporting that rather than dressing up a
 near-zero number as an edge.</p>
 
+<h2>Side-specific run model (2026-07-31 upgrade)</h2>
+<p class="note">The first version derived both teams' scoring rates from the win probability
+plus a single expected total. That total came from a hand-coded heuristic with a spread of
+only <b>sd 0.373</b> across games and <b>0.116</b> correlation with reality &mdash; nearly a
+constant, which is why the totals market showed almost no skill.</p>
+<p class="note">It is now a learned model predicting <b>home and away runs separately</b>,
+because home scoring depends on home offense <i>and</i> away pitching. Correlation with the
+realized total rose to <b>0.134</b> (1.67x), and the model can represent matchups the old
+inversion could not: a strong offense facing a strong pitcher has a high win probability and
+a <i>low</i> total. Two matchups with win probabilities of 0.600 and 0.596 now produce
+expected totals of 10.29 and 7.26.</p>
+<table><thead><tr><th>Market</th><th>Skill before</th><th>Skill after</th></tr></thead><tbody>
+<tr><td>over/under 8.5</td><td>+0.0015</td><td class="ok">+0.0055</td></tr>
+<tr><td>both teams score</td><td>-0.0004</td><td class="ok">+0.0020</td></tr>
+<tr><td>win AND over</td><td>+0.0082</td><td class="ok">+0.0083</td></tr>
+<tr><td>winner (bias)</td><td>+0.0030</td><td class="ok">+0.0012</td></tr>
+</tbody></table>
+<p class="note">The blend weight (0.75 on the win-probability inversion, 0.25 on the run
+model) was chosen by walk-forward search, not by hand.</p>
+
 <h2>The walk-off asymmetry</h2>
 <p class="note">Home teams win by exactly one run <b>16.69%</b> of the time but lose by
 exactly one run only <b>11.08%</b> of the time &mdash; 51% more often. This is not team

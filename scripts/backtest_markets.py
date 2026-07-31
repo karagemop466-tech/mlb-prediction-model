@@ -26,12 +26,17 @@ from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassif
 from sklearn.linear_model import LogisticRegression
 
 import simulate as S
+from total_model import SideModel, feature_cols as tm_feature_cols
 
 ROOT = Path(__file__).resolve().parent.parent
 PROC = ROOT / "data" / "proc"
 REPORTS = ROOT / "reports"
 
 N_SIMS_PER_GAME = 2500
+
+# Weight on the win-probability inversion vs the side-specific run model when
+# setting scoring rates. 1.0 = old behaviour (probability only).
+BLEND_WEIGHT = 0.75
 
 
 class Ensemble:
@@ -112,8 +117,13 @@ def run(start_season: int = 2019) -> dict:
         med = tr[fc].median()
         Xtr, Xte = tr[fc].fillna(med).values, te[fc].fillna(med).values
         mu, sd = Xtr.mean(0), Xtr.std(0) + 1e-9
-        model = Ensemble().fit((Xtr - mu) / sd, tr.home_win.values)
-        p_win = model.predict_proba((Xte - mu) / sd)[:, 1]
+        Xtr_s, Xte_s = (Xtr - mu) / sd, (Xte - mu) / sd
+        model = Ensemble().fit(Xtr_s, tr.home_win.values)
+        p_win = model.predict_proba(Xte_s)[:, 1]
+
+        # Side-specific expected runs, trained on the SAME prior seasons only.
+        side = SideModel(0.85).fit(Xtr_s, tr.home_score.values, tr.away_score.values)
+        eh, ea = side.predict(Xte_s)
 
         rng = np.random.default_rng(int(s))
         preds = {k: np.zeros(len(te)) for k in
@@ -123,9 +133,9 @@ def run(start_season: int = 2019) -> dict:
 
         # Cache rate solutions; solving per game is the expensive step.
         cache: dict[tuple[int, int], tuple[float, float]] = {}
-        for i, (_, row) in enumerate(te.iterrows()):
-            etot = expected_total_for(row, league_total)
-            hr, ar = S.rates_from_table(p_win[i], etot)
+        for i in range(len(te)):
+            hr, ar = S.blend_rates(p_win[i], float(eh[i]), float(ea[i]),
+                                   weight_prob=BLEND_WEIGHT)
             r = S.simulate_game(hr, ar, n_sims=N_SIMS_PER_GAME, rng=rng)
             preds["win"][i] = r.p_home_win()
             preds["over85"][i] = r.p_total_over(8.5)

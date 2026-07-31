@@ -406,6 +406,64 @@ def rates_from_probability(
     return mid * a, a
 
 
+def rates_from_expected_runs(
+    exp_home_runs: float,
+    exp_away_runs: float,
+    innings_home: float = 8.55,
+    innings_away: float = 9.0,
+) -> tuple[float, float]:
+    """Convert expected FINAL runs into per-half-inning scoring rates.
+
+    Preferred over rates_from_table when a side-specific run model is available:
+    it represents matchups the win-probability inversion cannot, such as a strong
+    offense facing a strong pitcher (high win probability, low total).
+
+    The home team bats fewer innings on average -- the bottom of the 9th is
+    skipped when it already leads, and truncated on a walk-off -- so its rate is
+    divided by a smaller number. 8.55 is the empirical mean of home half-innings
+    batted; away teams essentially always bat 9.
+    """
+    h = float(np.clip(exp_home_runs, 1.0, 12.0)) / innings_home
+    a = float(np.clip(exp_away_runs, 1.0, 12.0)) / innings_away
+    return h, a
+
+
+def simulate_from_expected_runs(
+    exp_home_runs: float,
+    exp_away_runs: float,
+    n_sims: int = 20000,
+    rng: np.random.Generator | None = None,
+) -> SimResult:
+    """Simulate directly from side-specific expected runs."""
+    h, a = rates_from_expected_runs(exp_home_runs, exp_away_runs)
+    return simulate_game(h, a, n_sims=n_sims, rng=rng)
+
+
+def blend_rates(
+    p_home_win: float,
+    exp_home_runs: float,
+    exp_away_runs: float,
+    weight_prob: float = 0.75,
+) -> tuple[float, float]:
+    """Combine the classifier's win probability with the side run model.
+
+    The classifier is the better-validated estimate of who wins (56.9% accuracy,
+    heavily audited). The side model carries information about HOW MUCH scoring
+    happens. Blending keeps the win probability anchored while letting the run
+    model shape the totals.
+
+    weight_prob=0.75 was selected by walk-forward search on 2024-2026. It
+    maximises both winner skill (0.0199) and totals skill (0.0089). Pure
+    probability (w=1.0) gives marginally lower totals bias but less skill on
+    every market; pure run model (w=0.0) loses winner skill.
+    """
+    exp_total = exp_home_runs + exp_away_runs
+    h_p, a_p = rates_from_table(p_home_win, exp_total)
+    h_r, a_r = rates_from_expected_runs(exp_home_runs, exp_away_runs)
+    w = float(np.clip(weight_prob, 0.0, 1.0))
+    return w * h_p + (1 - w) * h_r, w * a_p + (1 - w) * a_r
+
+
 def simulate_from_probability(
     p_home_win: float,
     expected_total: float = 9.05,

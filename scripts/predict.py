@@ -24,6 +24,7 @@ from sklearn.linear_model import LogisticRegression
 import features as F
 import simulate as SIM
 import pricing as PRICE
+from total_model import SideModel
 
 ROOT = Path(__file__).resolve().parent.parent
 PROC = ROOT / "data" / "proc"
@@ -138,7 +139,11 @@ def predict(day: date) -> pd.DataFrame:
     med = feat[fc].median()
     Xtr = feat[fc].fillna(med).values
     mu, sd = Xtr.mean(0), Xtr.std(0) + 1e-9
-    model = Ensemble().fit((Xtr - mu) / sd, feat["home_win"].values)
+    Xtr_s = (Xtr - mu) / sd
+    model = Ensemble().fit(Xtr_s, feat["home_win"].values)
+    # Side-specific expected runs, so totals reflect the actual matchup rather
+    # than being implied by the win probability alone.
+    side = SideModel(0.85).fit(Xtr_s, feat.home_score.values, feat.away_score.values)
 
     games = upcoming(day)
     if games.empty:
@@ -146,7 +151,9 @@ def predict(day: date) -> pd.DataFrame:
         return pd.DataFrame()
 
     X = build_matchup_rows(games, feat, fc).fillna(med).values
-    p = model.predict_proba((X - mu) / sd)[:, 1]
+    Xs = (X - mu) / sd
+    p = model.predict_proba(Xs)[:, 1]
+    exp_h, exp_a = side.predict(Xs)
 
     games["p_home_win"] = p
     games["p_away_win"] = 1 - p
@@ -159,12 +166,11 @@ def predict(day: date) -> pd.DataFrame:
     games["model"] = "ensemble_log_gbm_rf"
 
     # --- Simulate the joint distribution for every game.
-    league_total = 9.05
     rng = np.random.default_rng(20260730)
     sims = []
     for i, (_, g) in enumerate(games.iterrows()):
-        etot = league_total
-        hr, ar = SIM.rates_from_table(float(p[i]), etot)
+        hr, ar = SIM.blend_rates(float(p[i]), float(exp_h[i]), float(exp_a[i]),
+                                 weight_prob=0.75)
         r = SIM.simulate_game(hr, ar, n_sims=12000, rng=rng)
         sims.append({
             "p_over_8_5": r.p_total_over(8.5),
@@ -179,6 +185,8 @@ def predict(day: date) -> pd.DataFrame:
             "p_margin_ge3": float((np.abs(r.margin) >= 3).mean()),
             "exp_total": float(r.total.mean()),
             "fair_ml_home_sim": PRICE.prob_to_american(r.p_home_win()),
+            "exp_home_runs": float(exp_h[i]),
+            "exp_away_runs": float(exp_a[i]),
         })
     for k in sims[0]:
         games[k] = [s_[k] for s_ in sims]

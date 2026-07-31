@@ -106,6 +106,54 @@ def main():
     check("coherence checker catches a bad one-run decomposition",
           len(bad3) > 0, f"{len(bad3)} caught")
 
+    print("\nSIDE RUN MODEL / BLEND")
+    from total_model import SideModel, feature_cols as tfc
+    feats = pd.read_parquet(PROC / "features.parquet").sort_values("date")
+    feats = feats.dropna(subset=["home_win"])
+    fcs = tfc(feats)
+    tr = feats[feats.season <= 2024]
+    te = feats[feats.season >= 2025]
+    medq = tr[fcs].median()
+    Xt = tr[fcs].fillna(medq).values
+    Xe = te[fcs].fillna(medq).values
+    muq, sdq = Xt.mean(0), Xt.std(0) + 1e-9
+    sm = SideModel(0.85).fit((Xt - muq) / sdq, tr.home_score.values, tr.away_score.values)
+    eh, ea = sm.predict((Xe - muq) / sdq)
+
+    check("side model trains only on prior seasons",
+          tr.date.max() < te.date.min(),
+          f"train ends {tr.date.max().date()}, test starts {te.date.min().date()}")
+    check("expected runs in a physically plausible range",
+          bool((eh > 1.5).all() and (eh < 9).all() and (ea > 1.5).all() and (ea < 9).all()),
+          f"home {eh.min():.2f}-{eh.max():.2f}, away {ea.min():.2f}-{ea.max():.2f}")
+    act_h, act_a = te.home_score.mean(), te.away_score.mean()
+    check("expected runs unbiased within 0.35",
+          abs(eh.mean() - act_h) < 0.35 and abs(ea.mean() - act_a) < 0.35,
+          f"pred {eh.mean():.3f}/{ea.mean():.3f} vs actual {act_h:.3f}/{act_a:.3f}")
+    check("expected total correlates with realized total",
+          float(np.corrcoef(eh + ea, te.home_score + te.away_score)[0, 1]) > 0.08,
+          f"corr {np.corrcoef(eh+ea, te.home_score+te.away_score)[0,1]:.4f}")
+    check("home expected runs exceed away (home-field advantage)",
+          eh.mean() > ea.mean(), f"{eh.mean():.3f} vs {ea.mean():.3f}")
+
+    # The blend must remain monotone in win probability.
+    got = []
+    for pw in (0.35, 0.50, 0.65):
+        hr, ar = S.blend_rates(pw, 4.6, 4.5, weight_prob=0.75)
+        got.append(S.simulate_game(hr, ar, n_sims=25000, rng=rng).p_home_win())
+    check("blended rates stay monotone in win probability",
+          all(got[i] < got[i + 1] for i in range(len(got) - 1)),
+          " < ".join(f"{g:.3f}" for g in got))
+
+    # Same win probability, different run environments -> different totals.
+    r_hi = S.simulate_from_expected_runs(5.6, 4.6, n_sims=40000, rng=rng)
+    r_lo = S.simulate_from_expected_runs(3.9, 3.2, n_sims=40000, rng=rng)
+    check("run model separates totals at similar win probability",
+          abs(r_hi.p_home_win() - r_lo.p_home_win()) < 0.10
+          and (r_hi.total.mean() - r_lo.total.mean()) > 1.5,
+          f"p {r_hi.p_home_win():.3f}/{r_lo.p_home_win():.3f}, "
+          f"totals {r_hi.total.mean():.2f}/{r_lo.total.mean():.2f}")
+
     print("\n" + "=" * 66)
     print(f"RESULT: {len(PASS)}/{len(PASS)+len(FAIL)} passed")
     if FAIL:

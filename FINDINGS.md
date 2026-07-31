@@ -309,3 +309,46 @@ P(win∧over)=0.62 — arithmetically impossible.
 
 **No ROI is claimed and no edge over any real market is asserted.** This prices a
 distribution and checks arithmetic; it does not assert profitability.
+
+
+### Simulator upgrade: side-specific run model (2026-07-31)
+
+The first market backtest gave totals a skill of only +0.0015. Diagnosis showed
+the fault was the **input**, not the simulator: `expected_total_for()` produced
+values with sd 0.373 and correlation 0.116 against realized totals. A near
+constant in gives a near constant out.
+
+Replaced with a learned model predicting **home and away runs separately**.
+Measured justification: home runs correlate with home offense (0.086) and away
+defense (0.091) at roughly equal strength, so collapsing both into one rate
+derived from win probability discards half the information.
+
+| | Heuristic | Learned side model |
+|---|---|---|
+| Correlation with realized total | 0.080 | **0.134** |
+| Spread across games (sd) | 0.332 | **0.647** |
+
+Market skill, walk-forward on 17,060 games:
+
+| Market | Before | After |
+|---|---|---|
+| over/under 8.5 | +0.0015 | **+0.0055** |
+| both teams score | -0.0004 | **+0.0020** |
+| winner bias | +0.0030 | **+0.0012** |
+| totals bias | -0.0054 | **+0.0001** |
+
+The blend weight between the win-probability inversion and the run model was
+selected by walk-forward search (w=0.75 maximises both winner and totals skill),
+not chosen by hand.
+
+**A double-count that measurement prevented.** Park factor is the single
+strongest predictor of total runs (r=0.140), so an explicit park multiplier in
+the simulator looked obviously correct. Checking first showed the side model
+already reproduces the park effect almost exactly &mdash; predicted spread across
+park quintiles 1.524 runs vs actual 1.487. Adding a park term would have
+double-counted it. Not shipped.
+
+Simulator correctness tests expanded from 19 to **26**, including leakage
+protection for the new model and a direct check that two matchups with the same
+win probability can produce different totals (0.600/0.596 win probability ->
+10.29/7.26 expected total).
