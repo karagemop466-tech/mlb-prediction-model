@@ -525,3 +525,104 @@ indoor games.
 Weather correctness suite: **28/28** (`scripts/verify_weather.py`), including
 physics checks against published reference values, projection geometry
 identities, and the independent MLB cross-check.
+
+---
+
+## Starting lineups and player Statcast (2026-07-31)
+
+Two related hypotheses, both built in full, both rejected by the significance
+gate for the same structural reason.
+
+### Data collected
+
+| Asset | Volume |
+|---|---|
+| Starting lineups | 25,715 games, **97-99% coverage** 2016-2025 |
+| Player game logs | 8,184 player-seasons, **524,296 player-game rows** |
+| Batter Statcast | 265,578 batter-game rows (2021-2026) |
+
+Lineups come from the schedule endpoint with `hydrate=lineups`, one request per
+date (~1,900 calls instead of ~24,000 boxscores). Batter Statcast reuses the
+pitch chunks already cached for the pitcher experiment, so no new downloads.
+
+**Leakage control.** Player stats are accumulated from per-game logs and shifted
+one game, so a game on date D sees only games before D. Verified by hand:
+Ohtani's first 2024 game has NaN prior PAs, and his fifth game shows exactly 19
+PAs, matching the manual sum of games 1-4.
+
+### Hypothesis 1: lineup batting quality
+
+30 features -- PA-weighted OPS/OBP/SLG/ISO using real batting-order weights,
+top-5 OPS, K and BB rates, PA experience as a callup detector, and deviation
+from each team's own 30-game lineup norm.
+
+Raw correlations looked promising, and pointed at the winner rather than totals:
+
+| Feature | vs margin | vs home win | vs total |
+|---|---|---|---|
+| d_lu_pa_experience | +0.117 | +0.101 | −0.003 |
+| d_lu_bb_rate | +0.093 | +0.069 | −0.017 |
+| d_lu_ops | +0.085 | +0.069 | +0.007 |
+
+Walk-forward result: **home win −0.0003** against a ±0.0083 bar, **total runs
+±0.0000**. Every ablation family (experience only, OPS only, discipline,
+deviation only) landed inside noise.
+
+### Hypothesis 2: player Statcast contact quality
+
+The reasoning for a second attempt was specific: OPS is redundant with team run
+totals, but xwOBA and barrel rate measure what a hitter *deserved*, stripping
+sequencing luck and defensive positioning. That should be information team run
+totals cannot contain.
+
+| Feature | vs margin | vs home win |
+|---|---|---|
+| **d_lsc_xwoba** | **+0.114** | +0.092 |
+| d_lsc_ev | +0.089 | +0.065 |
+| d_lsc_hardhit | +0.080 | +0.061 |
+
+Lineup xwOBA is the strongest raw lineup signal found. Walk-forward result:
+**home win −0.0005**, **total runs ±0.0000**. Rejected.
+
+### Why both failed — measured, not assumed
+
+| Lineup feature | corr with team rolling runs scored |
+|---|---|
+| lineup OPS | 0.508 |
+| **lineup xwOBA** | **0.590** |
+| lineup xwOBA vs Pythagorean | 0.528 |
+
+Contact quality turned out to be **more** redundant than OPS, not less. The
+reason is mechanical: a team's rolling run production is computed from games
+played by these same hitters, so it already integrates their contact quality.
+Incremental R² on margin is +0.0047, which does not survive validation.
+
+### Operational constraint, independently disqualifying
+
+Lineups post ~3-4 hours before first pitch. Measured on the 2026-07-31 slate at
+18:52 UTC: **3 of 15 games** had lineups posted, all starting within ~4 hours.
+The daily workflow runs at 11:00 UTC. Even if lineups had helped, they would be
+unavailable for most live predictions without adding a second afternoon run.
+
+### A validation catch worth recording
+
+Aggregate lineup exit velocity computes to **82.7 mph** against a commonly cited
+~89. Investigated rather than assumed to be a bug: the raw pitch feed averages
+82.25 mph across *all* batted balls, while Savant leaderboards filter to
+qualified hitters. xwOBA (.320) and whiff rate (25.2%) match published norms
+exactly, confirming the aggregation is faithful and the difference is a
+population definition.
+
+### Running tally of rejected feature families
+
+1. Team Statcast — slightly negative
+2. Pitcher Statcast — −0.0001 across 7,939 games
+3. Per-inning scoring profile — real effect, exactly 0.0000 market value
+4. Bullpen load / travel / momentum — all inside noise
+5. **Starting lineups — −0.0003**
+6. **Player Statcast — −0.0005**
+
+Against one large success: **weather**, which lifted totals skill from +0.0051
+to +0.0097. The pattern is consistent — features that describe *who is playing*
+are redundant with team form, while features describing *external conditions*
+are not.

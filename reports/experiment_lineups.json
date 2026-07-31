@@ -1,0 +1,81 @@
+{
+  "experiment": "starting lineup batting quality features",
+  "hypothesis": "knowing the actual 9 batters beats team-level rolling averages",
+  "data": {
+    "lineups_collected": 25715,
+    "coverage_completed_seasons": "97-99%",
+    "coverage_2026_partial": "66.8%",
+    "player_seasons_fetched": 8184,
+    "player_game_rows": 524296,
+    "games_with_usable_lineup": "94.4%"
+  },
+  "features": 30,
+  "feature_families": [
+    "PA-weighted lineup OPS/OBP/SLG/ISO",
+    "top-5 OPS",
+    "K rate",
+    "BB rate",
+    "PA experience (callup detector)",
+    "n known batters",
+    "deviation from team's own 30-game lineup norm"
+  ],
+  "raw_correlations": {
+    "d_lu_pa_experience_vs_margin": 0.117,
+    "d_lu_bb_rate_vs_margin": 0.0927,
+    "d_lu_ops_vs_margin": 0.0849,
+    "d_lu_ops_vs_home_win": 0.0692,
+    "d_lu_ops_vs_total": 0.0065
+  },
+  "walk_forward_result": {
+    "home_win_base": 0.5658,
+    "home_win_with_lineup": 0.5655,
+    "delta": -0.0003,
+    "significance_bar": 0.0083,
+    "total_runs_base_corr": 0.1637,
+    "total_runs_with_lineup_corr": 0.1637,
+    "delta_corr": 0.0
+  },
+  "ablation_home_win": {
+    "pa_experience_only": 0.0003,
+    "ops_only": 0.0007,
+    "discipline": -0.0001,
+    "deviation_only": 0.0009,
+    "everything": -0.0003
+  },
+  "verdict": "REJECTED - not shipped",
+  "why": "Lineup quality is largely redundant with features already present. d_lu_ops correlates 0.508 with d_rf_50 (team rolling runs scored) and 0.421 with d_pythag. Team rolling form already integrates who is actually playing, because the rolling window is computed from games those same players played. Incremental R^2 on margin is +0.0047, which does not survive walk-forward validation. Every ablation family landed inside the +/-0.0083 noise bar.",
+  "operational_constraint": "Lineups post ~3-4 hours before first pitch. Measured on 2026-07-31 at 18:52 UTC: 3 of 15 games had lineups, all starting within ~4 hours. The daily workflow runs at 11:00 UTC, so even if lineups HAD helped, they would be unavailable for most live predictions. Any production use would require a second late-afternoon run.",
+  "kept": "scripts/lineups.py and scripts/lineup_features.py remain in the repo. The 524k player-game rows are the foundation for player-level Statcast, which is a different and more promising hypothesis: contact quality is not captured by team run totals the way OPS is.",
+  "followup_player_statcast": {
+    "hypothesis": "contact quality (xwOBA, EV, barrel, hard-hit, whiff) is NOT redundant with team run totals the way OPS is, because it strips out sequencing luck and defensive positioning",
+    "data": {
+      "batter_game_rows": 265578,
+      "games_with_lineup_statcast": "50.8% (2021-2026, limited by cached pitch chunks)",
+      "features": 18
+    },
+    "raw_correlations": {
+      "d_lsc_xwoba_vs_margin": 0.1144,
+      "d_lsc_xwoba_vs_home_win": 0.0924,
+      "d_lsc_ev_vs_margin": 0.0891,
+      "d_lsc_xwoba_vs_total": 0.0059
+    },
+    "walk_forward_result": {
+      "home_win_base": 0.5638,
+      "home_win_with": 0.5632,
+      "delta": -0.0005,
+      "bar": 0.0091,
+      "total_base_corr": 0.1642,
+      "total_with_corr": 0.1642,
+      "delta_corr": 0.0
+    },
+    "redundancy": {
+      "lineup_xwoba_vs_d_rf_50": 0.5895,
+      "lineup_xwoba_vs_d_pythag": 0.5283,
+      "lineup_xwoba_vs_d_rdiff_100": 0.5287
+    },
+    "verdict": "REJECTED - not shipped",
+    "why": "Contact quality proved MORE redundant with team form than OPS was (0.59 vs 0.51 against team rolling runs scored). The hypothesis that xwOBA escapes redundancy by stripping sequencing luck is wrong at the lineup level: a team's rolling run production already integrates the contact quality of the players who generated it. Raw correlation with margin (0.114) is the strongest of any lineup feature tested, and it still adds nothing incremental.",
+    "validation_note": "Aggregate exit velocity computes to 82.7 mph against a commonly cited ~89. Verified this is a population difference, not a bug: the raw pitch feed averages 82.25 mph across ALL batted balls, while Savant leaderboards filter to qualified hitters. xwOBA (.320) and whiff (25.2%) match published norms exactly."
+  },
+  "combined_conclusion": "Two independent lineup hypotheses -- traditional batting lines and Statcast contact quality -- both rejected for the same structural reason. Team rolling form is computed from games played by these same players, so it already encodes lineup quality. Knowing the specific 9 names adds ~0.005 incremental R-squared, which does not survive walk-forward validation. This is now the fourth feature family (team Statcast, pitcher Statcast, lineups, lineup Statcast) rejected by the same redundancy."
+}
