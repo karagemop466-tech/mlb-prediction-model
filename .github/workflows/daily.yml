@@ -54,17 +54,21 @@ jobs:
       - name: Correctness verification (blocks deploy on failure)
         run: python scripts/verify.py
 
+      - name: Simulator correctness (blocks deploy on failure)
+        run: cd scripts && python verify_sim.py
+
       - name: Grade previously logged predictions
         run: python scripts/predict.py --score || true
 
       - name: Predict today's slate
         run: python scripts/predict.py
 
-      - name: Full backtest + accuracy search (manual runs only)
+      - name: Full backtest + research loop (manual runs only)
         if: github.event.inputs.full_backtest == 'true'
         run: |
           python scripts/backtest.py
           python scripts/optimize_accuracy.py
+          cd scripts && python backtest_markets.py && python research_loop.py
 
       - name: Build site
         run: python scripts/build_site.py

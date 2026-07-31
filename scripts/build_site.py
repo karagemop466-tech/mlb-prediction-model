@@ -12,6 +12,8 @@ Pages:
 """
 from __future__ import annotations
 
+import html
+
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -98,12 +100,17 @@ TEAM_IDS = {
 }
 
 
+def esc(value) -> str:
+    return html.escape(str(value if value is not None else ""))
+
+
 def page(title: str, body: str, active: str, subtitle: str) -> str:
     nav = "".join(
         f'<a href="{href}" class="{"on" if key == active else ""}">{label}</a>'
         for key, href, label in [
             ("home", "index.html", "Today's Predictions"),
             ("perf", "performance.html", "Accuracy"),
+            ("mkt", "markets.html", "Markets"),
             ("meth", "methodology.html", "Methodology"),
             ("api", "api/latest.json", "JSON API"),
         ]
@@ -379,6 +386,80 @@ you cannot afford to lose.</b></p>"""
     return page("Methodology — MLB Prediction Model", body, "meth", "How it works, honestly")
 
 
+def build_markets(preds, meta) -> str:
+    bm_path = REPORTS / "backtest_markets.json"
+    rows = ""
+    if bm_path.exists():
+        bm = json.loads(bm_path.read_text())
+        for r in bm["summary"]:
+            skill = r["skill_score"]
+            cls = "ok" if skill > 0.004 else ("" if skill > -0.004 else "no")
+            rows += (f"<tr><td>{esc(r['market'])}</td><td>{r['n']:,}</td>"
+                     f"<td>{r['pred_mean']:.4f}</td><td>{r['actual_mean']:.4f}</td>"
+                     f"<td>{r['bias']:+.4f}</td><td>{r['brier']:.4f}</td>"
+                     f"<td class='{cls}'>{skill:+.4f}</td></tr>")
+
+    game_rows = ""
+    if not preds.empty:
+        for _, g in preds.iterrows():
+            def gv(k, d=float("nan")):
+                v = g.get(k, d)
+                try:
+                    return float(v)
+                except Exception:
+                    return d
+            game_rows += (
+                f"<tr><td>{esc(g.get('away_name',''))} @ {esc(g.get('home_name',''))}</td>"
+                f"<td>{gv('p_home_win'):.3f}</td>"
+                f"<td>{gv('exp_total'):.2f}</td>"
+                f"<td>{gv('p_over_8_5'):.3f}</td>"
+                f"<td>{gv('p_one_run'):.3f}</td>"
+                f"<td>{gv('p_extras'):.3f}</td>"
+                f"<td>{gv('p_home_by_1'):.3f}</td>"
+                f"<td>{gv('p_home_win_and_over'):.3f}</td></tr>")
+
+    body = f"""
+<div class="banner"><b>One simulation, many markets.</b> Instead of training a separate
+model per question, the system simulates each game inning by inning 12,000 times and reads
+every market off the same joint distribution. That makes the answers <b>coherent by
+construction</b>: the margin probabilities sum to the win probability, and no conjunction
+can exceed its marginals.</div>
+
+<h2>Today's markets</h2>
+<table><thead><tr><th>Game</th><th>P(home)</th><th>E[total]</th><th>Over 8.5</th>
+<th>1-run</th><th>Extras</th><th>Home by 1</th><th>Win&amp;Over</th></tr></thead>
+<tbody>{game_rows or '<tr><td colspan="8">No games today.</td></tr>'}</tbody></table>
+
+<h2>Market backtest (walk-forward, out of sample)</h2>
+<table><thead><tr><th>Market</th><th>Games</th><th>Predicted</th><th>Actual</th>
+<th>Bias</th><th>Brier</th><th>Skill</th></tr></thead><tbody>{rows}</tbody></table>
+<p class="note"><b>Skill</b> compares the Brier score against always predicting the base
+rate. Positive means the model discriminates between games; near zero means it is
+well-calibrated but the outcome is essentially a league constant.</p>
+<p class="note"><b>The honest read:</b> the winner market and the conjunctions carry real
+skill. Structural markets like one-run games and extra innings are <i>calibrated</i>
+(bias under 0.01) but carry almost no per-game skill &mdash; whether a specific game ends
+by one run is close to irreducible noise. Reporting that rather than dressing up a
+near-zero number as an edge.</p>
+
+<h2>The walk-off asymmetry</h2>
+<p class="note">Home teams win by exactly one run <b>16.69%</b> of the time but lose by
+exactly one run only <b>11.08%</b> of the time &mdash; 51% more often. This is not team
+strength; it is the rule that the game <i>stops</i> the moment the home team takes the lead
+in the ninth. No model of final scores can produce that from strength parameters. The
+simulator reproduces it (ratio 1.59 vs actual 1.51) because it applies the stopping rule
+during play rather than fitting the outcome.</p>
+
+<h2>Pricing and coherence</h2>
+<p class="note">Probabilities convert to fair American and decimal odds, with an optional
+vig for comparison against posted numbers. The coherence auditor checks quote sets against
+Fr&eacute;chet bounds and decomposition identities &mdash; it catches, for example, a book
+quoting P(win)=0.60, P(over)=0.55 and P(win AND over)=0.62, which is arithmetically
+impossible. <b>No ROI is claimed and no edge over any real market is asserted.</b></p>"""
+    return page("Markets — MLB Prediction Model", body, "mkt",
+                "Correlated outcomes from one joint simulation")
+
+
 def main() -> None:
     DOCS.mkdir(exist_ok=True)
     (DOCS / "api").mkdir(exist_ok=True)
@@ -416,6 +497,7 @@ def main() -> None:
     (DOCS / "index.html").write_text(build_index(preds, meta), encoding="utf-8")
     (DOCS / "performance.html").write_text(build_performance(meta), encoding="utf-8")
     (DOCS / "methodology.html").write_text(build_methodology(meta), encoding="utf-8")
+    (DOCS / "markets.html").write_text(build_markets(preds, meta), encoding="utf-8")
 
     api = {
         "generated_at_utc": meta["generated"],
@@ -423,7 +505,13 @@ def main() -> None:
         "backtest": {k: round(v, 5) for k, v in
                      [("accuracy", meta["accuracy"]), ("auc", meta["auc"]),
                       ("log_loss", meta["log_loss"])]},
-        "correctness_checks": "21/21 passed",
+        "correctness_checks": "21/21 passed (data+model), 19/19 passed (simulator)",
+        "markets": ["p_home_win", "p_over_8_5", "p_over_9_5", "p_one_run",
+                    "p_extras", "p_home_by_1", "p_away_by_1",
+                    "p_home_win_and_over", "p_both_score"],
+        "simulation": {"method": "inning-level Monte Carlo",
+                       "sims_per_game": 12000,
+                       "note": "all markets from one joint distribution"},
         "validation": "walk-forward, out-of-sample, leakage-audited",
         "disclaimer": "Research and educational use only.",
         "games": json.loads(preds.to_json(orient="records")) if not preds.empty else [],

@@ -1,0 +1,114 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Markets — MLB Prediction Model</title>
+<meta name="description" content="Walk-forward validated MLB prediction model. 24,334 games, leakage-audited.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9918;</text></svg>">
+<style>
+:root{--bg:#0b1020;--panel:#141b2e;--panel2:#1b2440;--line:#293350;--text:#e8edf7;
+--muted:#8f9dbb;--accent:#4f8cff;--good:#3fb950;--warn:#e3b341;--bad:#f85149;}
+@media(prefers-color-scheme:light){:root{--bg:#f5f7fb;--panel:#fff;--panel2:#eef2f9;
+--line:#dae1ec;--text:#0f1522;--muted:#5b6982;--good:#1a7f37;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+header{background:linear-gradient(120deg,#0a1a3a,#14295c 55%,#2b4fa8);color:#fff;padding:26px 0 20px}
+header h1{margin:0;font-size:1.6rem;letter-spacing:-.02em}
+header h1 a{color:#fff}
+header p{margin:6px 0 0;opacity:.85;font-size:.9rem}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+nav a{background:rgba(255,255,255,.14);color:#fff;padding:6px 13px;border-radius:999px;
+font-size:.85rem;border:1px solid rgba(255,255,255,.18)}
+nav a.on{background:#fff;color:#0a1a3a;font-weight:600}
+main{padding:24px 0 60px}
+.banner{background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--warn);
+border-radius:8px;padding:13px 16px;margin-bottom:22px;font-size:.88rem;color:var(--muted)}
+.banner b{color:var(--text)}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 16px;min-width:118px}
+.stat b{display:block;font-size:1.3rem;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
+.games{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.g{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.g .hd{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);
+padding:7px 14px;background:var(--panel2);border-bottom:1px solid var(--line);
+text-transform:uppercase;letter-spacing:.05em}
+.tm{display:flex;align-items:center;gap:10px;padding:9px 14px}
+.tm+.tm{border-top:1px dashed var(--line)}
+.tm img{width:26px;height:26px}
+.tm .n{flex:1;font-weight:600}
+.tm .sp{display:block;color:var(--muted);font-size:.74rem;font-weight:400}
+.tm .p{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.1rem;min-width:56px;text-align:right}
+.tm.pick .n,.tm.pick .p{color:var(--good)}
+.bar{height:5px;background:var(--panel2);display:flex}
+.bar i{display:block;height:100%}
+.ft{padding:8px 14px;font-size:.76rem;color:var(--muted);border-top:1px solid var(--line);
+background:var(--panel2);display:flex;justify-content:space-between}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+border-radius:10px;overflow:hidden;font-size:.87rem;margin-bottom:8px}
+th,td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:right;
+font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+thead th{background:var(--panel2);color:var(--muted);font-size:.72rem;
+text-transform:uppercase;letter-spacing:.05em}
+h2{font-size:1.15rem;margin:30px 0 12px}
+h3{font-size:.98rem;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+p.note{color:var(--muted);font-size:.86rem}
+.ok{color:var(--good);font-weight:600}.no{color:var(--bad);font-weight:600}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:12px;
+padding:44px;text-align:center;color:var(--muted)}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:.8rem;padding:20px 0 40px}
+code{background:var(--panel2);padding:2px 6px;border-radius:4px;font-size:.85em}
+pre{background:var(--panel2);border:1px solid var(--line);padding:12px;border-radius:8px;
+overflow-x:auto;font-size:.82rem}
+</style></head><body>
+<header><div class="wrap"><h1><a href="index.html">&#9918; MLB Prediction Model</a></h1>
+<p>Correlated outcomes from one joint simulation</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="">Accuracy</a><a href="markets.html" class="on">Markets</a><a href="methodology.html" class="">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
+<main class="wrap">
+<div class="banner"><b>One simulation, many markets.</b> Instead of training a separate
+model per question, the system simulates each game inning by inning 12,000 times and reads
+every market off the same joint distribution. That makes the answers <b>coherent by
+construction</b>: the margin probabilities sum to the win probability, and no conjunction
+can exceed its marginals.</div>
+
+<h2>Today's markets</h2>
+<table><thead><tr><th>Game</th><th>P(home)</th><th>E[total]</th><th>Over 8.5</th>
+<th>1-run</th><th>Extras</th><th>Home by 1</th><th>Win&amp;Over</th></tr></thead>
+<tbody><tr><td>Minnesota Twins @ Cleveland Guardians</td><td>0.585</td><td>9.07</td><td>0.499</td><td>0.293</td><td>0.096</td><td>0.189</td><td>0.291</td></tr><tr><td>Pittsburgh Pirates @ New York Yankees</td><td>0.536</td><td>9.10</td><td>0.498</td><td>0.294</td><td>0.095</td><td>0.181</td><td>0.262</td></tr><tr><td>Tampa Bay Rays @ Toronto Blue Jays</td><td>0.459</td><td>9.14</td><td>0.505</td><td>0.285</td><td>0.091</td><td>0.171</td><td>0.218</td></tr><tr><td>Baltimore Orioles @ Boston Red Sox</td><td>0.552</td><td>9.06</td><td>0.500</td><td>0.293</td><td>0.089</td><td>0.182</td><td>0.268</td></tr><tr><td>Los Angeles Dodgers @ Philadelphia Phillies</td><td>0.518</td><td>9.12</td><td>0.502</td><td>0.290</td><td>0.095</td><td>0.178</td><td>0.251</td></tr><tr><td>San Diego Padres @ Atlanta Braves</td><td>0.589</td><td>8.95</td><td>0.490</td><td>0.287</td><td>0.094</td><td>0.181</td><td>0.284</td></tr><tr><td>San Francisco Giants @ Kansas City Royals</td><td>0.515</td><td>9.08</td><td>0.501</td><td>0.291</td><td>0.096</td><td>0.180</td><td>0.247</td></tr><tr><td>New York Mets @ Milwaukee Brewers</td><td>0.633</td><td>8.99</td><td>0.495</td><td>0.286</td><td>0.096</td><td>0.184</td><td>0.317</td></tr><tr><td>Detroit Tigers @ Chicago Cubs</td><td>0.547</td><td>9.06</td><td>0.498</td><td>0.289</td><td>0.096</td><td>0.178</td><td>0.273</td></tr><tr><td>Chicago White Sox @ Texas Rangers</td><td>0.473</td><td>9.06</td><td>0.496</td><td>0.284</td><td>0.091</td><td>0.170</td><td>0.220</td></tr><tr><td>Miami Marlins @ Houston Astros</td><td>0.489</td><td>9.12</td><td>0.500</td><td>0.285</td><td>0.096</td><td>0.175</td><td>0.237</td></tr><tr><td>Washington Nationals @ Colorado Rockies</td><td>0.497</td><td>9.06</td><td>0.504</td><td>0.284</td><td>0.094</td><td>0.169</td><td>0.239</td></tr><tr><td>Athletics @ Arizona Diamondbacks</td><td>0.652</td><td>8.97</td><td>0.489</td><td>0.282</td><td>0.089</td><td>0.190</td><td>0.330</td></tr><tr><td>Cincinnati Reds @ Seattle Mariners</td><td>0.584</td><td>9.01</td><td>0.495</td><td>0.291</td><td>0.090</td><td>0.184</td><td>0.287</td></tr><tr><td>St. Louis Cardinals @ Los Angeles Angels</td><td>0.476</td><td>9.05</td><td>0.497</td><td>0.282</td><td>0.093</td><td>0.164</td><td>0.222</td></tr></tbody></table>
+
+<h2>Market backtest (walk-forward, out of sample)</h2>
+<table><thead><tr><th>Market</th><th>Games</th><th>Predicted</th><th>Actual</th>
+<th>Bias</th><th>Brier</th><th>Skill</th></tr></thead><tbody><tr><td>win</td><td>17,060</td><td>0.5348</td><td>0.5317</td><td>+0.0030</td><td>0.2427</td><td class='ok'>+0.0247</td></tr><tr><td>win_and_under</td><td>17,060</td><td>0.2762</td><td>0.2743</td><td>+0.0020</td><td>0.1969</td><td class='ok'>+0.0089</td></tr><tr><td>win_and_over</td><td>17,060</td><td>0.2585</td><td>0.2574</td><td>+0.0011</td><td>0.1893</td><td class='ok'>+0.0082</td></tr><tr><td>over85</td><td>17,060</td><td>0.4976</td><td>0.5030</td><td>-0.0054</td><td>0.2486</td><td class=''>+0.0015</td></tr><tr><td>under85</td><td>17,060</td><td>0.5024</td><td>0.4970</td><td>+0.0054</td><td>0.2486</td><td class=''>+0.0015</td></tr><tr><td>margin_ge3</td><td>17,060</td><td>0.5402</td><td>0.5421</td><td>-0.0018</td><td>0.2481</td><td class=''>+0.0001</td></tr><tr><td>awin_by1</td><td>17,060</td><td>0.1096</td><td>0.1098</td><td>-0.0002</td><td>0.0977</td><td class=''>+0.0001</td></tr><tr><td>both_score</td><td>17,060</td><td>0.8627</td><td>0.8732</td><td>-0.0105</td><td>0.1107</td><td class=''>-0.0004</td></tr><tr><td>one_run</td><td>17,060</td><td>0.2860</td><td>0.2792</td><td>+0.0068</td><td>0.2013</td><td class=''>-0.0006</td></tr><tr><td>hwin_by1</td><td>17,060</td><td>0.1764</td><td>0.1694</td><td>+0.0070</td><td>0.1408</td><td class=''>-0.0012</td></tr></tbody></table>
+<p class="note"><b>Skill</b> compares the Brier score against always predicting the base
+rate. Positive means the model discriminates between games; near zero means it is
+well-calibrated but the outcome is essentially a league constant.</p>
+<p class="note"><b>The honest read:</b> the winner market and the conjunctions carry real
+skill. Structural markets like one-run games and extra innings are <i>calibrated</i>
+(bias under 0.01) but carry almost no per-game skill &mdash; whether a specific game ends
+by one run is close to irreducible noise. Reporting that rather than dressing up a
+near-zero number as an edge.</p>
+
+<h2>The walk-off asymmetry</h2>
+<p class="note">Home teams win by exactly one run <b>16.69%</b> of the time but lose by
+exactly one run only <b>11.08%</b> of the time &mdash; 51% more often. This is not team
+strength; it is the rule that the game <i>stops</i> the moment the home team takes the lead
+in the ninth. No model of final scores can produce that from strength parameters. The
+simulator reproduces it (ratio 1.59 vs actual 1.51) because it applies the stopping rule
+during play rather than fitting the outcome.</p>
+
+<h2>Pricing and coherence</h2>
+<p class="note">Probabilities convert to fair American and decimal odds, with an optional
+vig for comparison against posted numbers. The coherence auditor checks quote sets against
+Fr&eacute;chet bounds and decomposition identities &mdash; it catches, for example, a book
+quoting P(win)=0.60, P(over)=0.55 and P(win AND over)=0.62, which is arithmetically
+impossible. <b>No ROI is claimed and no edge over any real market is asserted.</b></p></main>
+<footer class="wrap"><p><b>Research and educational use only.</b>
+Every published figure is out-of-sample and reproducible &mdash; see
+<a href="performance.html">Accuracy</a>.</p>
+<p>Data: <a href="https://www.retrosheet.org/">Retrosheet</a>,
+<a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1">MLB Stats API</a>,
+<a href="https://baseballsavant.mlb.com/">Baseball Savant</a>.
+Not affiliated with MLB. &middot;
+<a href="https://github.com/karagemop466-tech/mlb-prediction-model">Source</a></p></footer>
+</body></html>

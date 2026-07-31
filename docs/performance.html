@@ -64,7 +64,7 @@ pre{background:var(--panel2);border:1px solid var(--line);padding:12px;border-ra
 overflow-x:auto;font-size:.82rem}
 </style></head><body>
 <header><div class="wrap"><h1><a href="index.html">&#9918; MLB Prediction Model</a></h1>
-<p>19,476 out-of-sample games</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="on">Accuracy</a><a href="methodology.html" class="">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
+<p>19,476 out-of-sample games</p><nav><a href="index.html" class="">Today's Predictions</a><a href="performance.html" class="on">Accuracy</a><a href="markets.html" class="">Markets</a><a href="methodology.html" class="">Methodology</a><a href="api/latest.json" class="">JSON API</a></nav></div></header>
 <main class="wrap">
 <div class="banner"><b>Every number here is out-of-sample.</b> The model trains only on
 seasons before the one it predicts, and is never refit inside a test season.</div>
@@ -106,7 +106,7 @@ every run, and the daily workflow refuses to publish if any check fails.</p>
 <h2>Forward test (live, un-fakeable)</h2>
 <p class="note">Predictions are timestamped and committed <i>before</i> first pitch, then
 graded after. Unlike a backtest, this cannot be corrupted by hindsight.</p>
-<p><b>15 graded</b> &mdash; accuracy <b>60.0%</b> vs backtest expectation 56.9%. <b>Sample far too small to be meaningful</b> (&plusmn;24.8% at 95% confidence); ~300 games are needed before this says anything.</p>
+<p><b>30 graded</b> &mdash; accuracy <b>56.7%</b> vs backtest expectation 56.9%. <b>Sample far too small to be meaningful</b> (&plusmn;17.7% at 95% confidence); ~300 games are needed before this says anything.</p>
 
 <h2>Leakage audit</h2>
 <table><thead><tr><th>Test</th><th>Result</th><th>Status</th></tr></thead><tbody>

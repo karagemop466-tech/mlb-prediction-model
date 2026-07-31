@@ -22,6 +22,8 @@ from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassif
 from sklearn.linear_model import LogisticRegression
 
 import features as F
+import simulate as SIM
+import pricing as PRICE
 
 ROOT = Path(__file__).resolve().parent.parent
 PROC = ROOT / "data" / "proc"
@@ -155,6 +157,31 @@ def predict(day: date) -> pd.DataFrame:
     ]
     games["predicted_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds") + "Z"
     games["model"] = "ensemble_log_gbm_rf"
+
+    # --- Simulate the joint distribution for every game.
+    league_total = 9.05
+    rng = np.random.default_rng(20260730)
+    sims = []
+    for i, (_, g) in enumerate(games.iterrows()):
+        etot = league_total
+        hr, ar = SIM.rates_from_table(float(p[i]), etot)
+        r = SIM.simulate_game(hr, ar, n_sims=12000, rng=rng)
+        sims.append({
+            "p_over_8_5": r.p_total_over(8.5),
+            "p_over_9_5": r.p_total_over(9.5),
+            "p_one_run": r.p_one_run_game(),
+            "p_extras": r.p_extras(),
+            "p_home_by_1": r.p_home_win_by(1),
+            "p_away_by_1": r.p_home_win_by(-1),
+            "p_home_win_and_over": r.p_joint(True, 8.5),
+            "p_away_win_and_over": r.p_joint(False, 8.5),
+            "p_both_score": r.p_both_score(),
+            "p_margin_ge3": float((np.abs(r.margin) >= 3).mean()),
+            "exp_total": float(r.total.mean()),
+            "fair_ml_home_sim": PRICE.prob_to_american(r.p_home_win()),
+        })
+    for k in sims[0]:
+        games[k] = [s_[k] for s_ in sims]
     return games
 
 
@@ -163,7 +190,11 @@ def log_predictions(g: pd.DataFrame) -> None:
         return
     cols = ["date", "game_pk", "away", "home", "away_name", "home_name",
             "away_sp_name", "home_sp_name", "p_home_win", "pick", "confidence",
-            "fair_ml_home", "predicted_at", "model"]
+            "fair_ml_home", "predicted_at", "model",
+            "p_over_8_5", "p_over_9_5", "p_one_run", "p_extras",
+            "p_home_by_1", "p_away_by_1", "p_home_win_and_over",
+            "p_away_win_and_over", "p_both_score", "p_margin_ge3", "exp_total"]
+    cols = [c for c in cols if c in g.columns]
     out = g[cols].copy()
     REPORTS.mkdir(exist_ok=True)
     if LOG.exists():
@@ -179,6 +210,8 @@ def score() -> None:
         print("[score] no forward log yet")
         return
     log = pd.read_csv(LOG)
+    # Drop grades from any earlier run so the merge cannot create _x/_y columns.
+    log = log.drop(columns=[c for c in ("home_win", "correct") if c in log.columns])
     res = pd.read_parquet(PROC / "games.parquet")
     res["date"] = pd.to_datetime(res["date"])
     log["date"] = pd.to_datetime(log["date"])
@@ -190,6 +223,40 @@ def score() -> None:
     m["correct"] = ((m.p_home_win >= 0.5).astype(int) == m.home_win).astype(int)
     ll = -np.mean(m.home_win * np.log(m.p_home_win.clip(1e-6, 1 - 1e-6))
                   + (1 - m.home_win) * np.log((1 - m.p_home_win).clip(1e-6, 1 - 1e-6)))
+
+    # --- Grade every simulated market, not just the winner.
+    mm = m.merge(res[["date", "home", "away", "home_score", "away_score"]],
+                 on=["date", "home", "away"], how="left")
+    hs = pd.to_numeric(mm["home_score"], errors="coerce").values.astype(float)
+    as_ = pd.to_numeric(mm["away_score"], errors="coerce").values.astype(float)
+    margin, total = hs - as_, hs + as_
+
+    market_defs = {
+        "p_over_8_5": (total > 8.5),
+        "p_over_9_5": (total > 9.5),
+        "p_one_run": (np.abs(margin) == 1),
+        "p_home_by_1": (margin == 1),
+        "p_away_by_1": (margin == -1),
+        "p_home_win_and_over": ((margin > 0) & (total > 8.5)),
+        "p_both_score": ((hs > 0) & (as_ > 0)),
+        "p_margin_ge3": (np.abs(margin) >= 3),
+    }
+    print(f"\n{'market':<22}{'n':>6}{'pred':>9}{'actual':>9}{'bias':>9}{'brier':>9}")
+    print("-" * 64)
+    rows = [("p_home_win",
+             pd.to_numeric(mm["p_home_win"], errors="coerce").values,
+             (margin > 0).astype(float))]
+    for col, outcome in market_defs.items():
+        if col not in mm.columns:
+            continue
+        pr = pd.to_numeric(mm[col], errors="coerce").values
+        ok = ~np.isnan(pr) & ~np.isnan(hs)
+        if ok.sum() < 5:
+            continue
+        rows.append((col, pr[ok], outcome[ok].astype(float)))
+    for name, pr, y in rows:
+        print(f"{name:<22}{len(y):>6}{pr.mean():>9.4f}{y.mean():>9.4f}"
+              f"{pr.mean()-y.mean():>+9.4f}{np.mean((pr-y)**2):>9.4f}")
 
     # Persist grades back into the forward log so the site can render them.
     graded = m[["game_pk", "home_win", "correct"]]
@@ -239,7 +306,10 @@ def main() -> None:
         out["game_time"] = t.dt.tz_convert("US/Eastern").dt.strftime("%-I:%M %p ET")
     cols = ["date", "game_pk", "away", "home", "away_name", "home_name",
             "away_sp_name", "home_sp_name", "p_home_win", "pick", "confidence",
-            "fair_ml_home", "game_time"]
+            "fair_ml_home", "game_time",
+            "p_over_8_5", "p_over_9_5", "p_one_run", "p_extras",
+            "p_home_by_1", "p_away_by_1", "p_home_win_and_over",
+            "p_both_score", "exp_total"]
     cols = [c for c in cols if c in out.columns]
     REPORTS.mkdir(exist_ok=True)
     out[cols].to_csv(REPORTS / "today.csv", index=False)

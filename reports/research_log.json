@@ -1,0 +1,50 @@
+[
+  {
+    "hypothesis": "bullpen_load",
+    "rationale": "Relief workload over prior 3-5 days depletes late-inning quality",
+    "tested_at": "2026-07-31T07:11:55+00:00",
+    "n_features": 9,
+    "coverage": 0.9993839582734404,
+    "baseline_accuracy": 0.565936066409379,
+    "accuracy": 0.5636787300662637,
+    "delta_accuracy": -0.0022573363431153126,
+    "baseline_auc": 0.5886885710607997,
+    "auc": 0.5888673343943004,
+    "delta_auc": 0.00017876333350064222,
+    "significance_bar": 0.010380513537856578,
+    "n": 13733,
+    "status": "rejected"
+  },
+  {
+    "hypothesis": "travel_fatigue",
+    "rationale": "Road trip length and home/road transitions affect performance",
+    "tested_at": "2026-07-31T07:13:33+00:00",
+    "n_features": 9,
+    "coverage": 1.0,
+    "baseline_accuracy": 0.565936066409379,
+    "accuracy": 0.5673195951358043,
+    "delta_accuracy": 0.0013835287264253315,
+    "baseline_auc": 0.5886885710607997,
+    "auc": 0.58889339035844,
+    "delta_auc": 0.00020481929764026852,
+    "significance_bar": 0.010380513537856578,
+    "n": 13733,
+    "status": "rejected"
+  },
+  {
+    "hypothesis": "form_momentum",
+    "rationale": "Short-vs-long form divergence captures injuries/callups",
+    "tested_at": "2026-07-31T07:15:17+00:00",
+    "n_features": 12,
+    "coverage": 0.9871041931906854,
+    "baseline_accuracy": 0.565936066409379,
+    "accuracy": 0.5660088837107697,
+    "delta_accuracy": 7.281730139074849e-05,
+    "baseline_auc": 0.5886885710607997,
+    "auc": 0.5884449484325945,
+    "delta_auc": -0.00024362262820520897,
+    "significance_bar": 0.010380513537856578,
+    "n": 13733,
+    "status": "rejected"
+  }
+]

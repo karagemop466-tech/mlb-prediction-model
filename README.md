@@ -36,6 +36,22 @@ if any fail:
 Two genuine bugs were found and fixed by this suite: a mislabeled tie-game
 assertion and an incorrect bound applied to differential features.
 
+## Correlated outcomes
+
+The system simulates each game inning by inning (12,000 sims) and reads every
+market off one joint distribution, so answers are coherent by construction.
+
+| Market | Backtest bias | Skill |
+|---|---|---|
+| Winner | +0.0030 | +0.0247 |
+| Win AND over 8.5 | +0.0011 | +0.0082 |
+| Over 8.5 | −0.0054 | +0.0015 |
+| One-run game | +0.0068 | −0.0006 |
+
+Validated on 17,060 out-of-sample games. Reproduces the walk-off asymmetry
+(P(margin=+1)=16.7% vs P(−1)=11.1%) that no final-score model can produce.
+See [DESIGN_SIMULATION.md](DESIGN_SIMULATION.md).
+
 ## Quickstart
 
 ```bash
@@ -46,6 +62,13 @@ python scripts/audit_leakage.py     # must pass 4/4
 python scripts/verify.py            # must pass 21/21
 python scripts/predict.py           # today's slate
 python scripts/optimize_accuracy.py # accuracy-selected model search
+cd scripts
+python calibrate_innings.py         # measure half-inning distribution
+python fit_simulator.py             # fit simulator to empirical targets
+python verify_sim.py                # must pass 19/19
+python backtest_markets.py          # walk-forward, every market
+python research_loop.py             # test new hypotheses with a significance gate
+python pricing.py                   # price sheet + coherence audit
 ```
 
 ## Model

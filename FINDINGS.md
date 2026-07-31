@@ -207,3 +207,105 @@ The Odds API (historical tier), Sports Insights. Kaggle has free sets ending 202
   manually in `TEAM_MAP`.
 - **This is a research tool, not betting advice.** A validated edge against
   efficient markets is rare; most people lose. Never stake money you can't lose.
+
+---
+
+## Correlated-outcome simulation (added 2026-07-31)
+
+### Why a simulator, not more classifiers
+
+The classifier answers one question: P(home win). It cannot answer "will they win
+by exactly one run" or "will they win AND go over 8.5" coherently, because
+separately-trained models are not forced to agree with each other.
+
+Three measurements drove the design:
+
+| Measurement | Value | Consequence |
+|---|---|---|
+| corr(home_score, away_score) | **+0.0052** | A copula is pointless — nothing to correlate |
+| variance / mean of runs | **2.18** | Poisson is wrong by a factor of two |
+| P(margin=+1) vs P(margin=−1) | **16.69% vs 11.08%** | Walk-off rule, unreproducible from final scores |
+
+The +1/−1 asymmetry is the decisive one. Home teams win by one run 51% more
+often than they lose by one, purely because the game *stops* when they take the
+lead in the ninth. That is a rule artifact, so the model has to simulate innings
+and apply the stopping rule.
+
+### Architecture
+
+Sample half-innings from the empirical distribution (measured on 25,136
+half-innings, **innings 1–8 only** — the 9th is contaminated by the very
+stopping rules being modeled), tilt them exponentially to hit each team's
+scoring rate, and apply real stopping rules during play.
+
+Fitted parameters (`scripts/fit_simulator.py`, coordinate search on 8 targets):
+
+```
+GAME_ENV_SD        0.28   per-team-game scoring dispersion
+EXTRA_INNING_MULT  1.30   scoring rate in extras
+WALKOFF_MULTIRUN_P 0.22   share of walk-offs clearing by >1 run
+```
+
+### Design decisions found by measurement, not assumption
+
+1. **Shared vs independent dispersion.** A per-*game* environment factor was
+   tried first. It forced cov(home,away) to 1.39 when the real value is 0.05.
+   Switched to independent per-team factors, which reproduce both the per-team
+   variance and the near-zero covariance.
+2. **Walk-off truncation is not absolute.** Capping every walk-off at
+   deficit+1 forces 100% one-run margins. Measured: when the winning run scores
+   in the final half-inning, the margin is 1 run **85.8%** of the time — a slam
+   clears the fence before play stops.
+3. **The optimizer gamed a bad loss.** With low weights on variance it "fixed"
+   the margin probabilities by inflating score variance 28% above reality. The
+   weights were rebalanced onto relative error so variance cannot be traded away.
+4. **The observed extra-inning multiplier (2.19x) is a selection artifact** —
+   extras only *continue* while tied, so high-scoring frames end the game and
+   never generate another observation. Fitted to the 8.21% extras rate instead.
+
+### Market backtest: 17,060 games, walk-forward
+
+| Market | Pred | Actual | Bias | Skill |
+|---|---|---|---|---|
+| win | 0.5348 | 0.5317 | +0.0030 | **+0.0247** |
+| win_and_under | 0.2762 | 0.2743 | +0.0020 | **+0.0089** |
+| win_and_over | 0.2585 | 0.2574 | +0.0011 | **+0.0082** |
+| over 8.5 | 0.4976 | 0.5030 | −0.0054 | +0.0015 |
+| margin ≥ 3 | 0.5402 | 0.5421 | −0.0018 | +0.0001 |
+| away win by 1 | 0.1096 | 0.1098 | −0.0002 | +0.0001 |
+| both score | 0.8627 | 0.8732 | −0.0105 | −0.0004 |
+| one run | 0.2860 | 0.2792 | +0.0068 | −0.0006 |
+| home win by 1 | 0.1764 | 0.1694 | +0.0070 | −0.0012 |
+
+**Every market is calibrated** (worst bias 0.011). But only the winner and the
+conjunctions carry real skill. One-run games and extra innings are essentially
+**league constants** — the simulator predicts their rate correctly and has almost
+no ability to say which specific game will be close. That is a real limit of the
+sport, and it is reported rather than dressed up.
+
+### Self-improvement loop
+
+`scripts/research_loop.py` maintains a hypothesis registry, tests each with an
+identical walk-forward protocol, and applies a significance gate that widens
+with the number of ideas tested (Bonferroni-style). First session:
+
+| Hypothesis | Δ accuracy | Bar | Verdict |
+|---|---|---|---|
+| bullpen_load | −0.0023 | +0.0104 | REJECT |
+| travel_fatigue | +0.0014 | +0.0104 | REJECT |
+| form_momentum | +0.0001 | +0.0104 | REJECT |
+
+**0 of 3 promoted** — including bullpen fatigue, which FINDINGS.md previously
+rated the most promising remaining idea. The gate exists precisely because this
+project already has a case study in what happens without one: pitcher Statcast
+looked like +1.0% on one season and was −0.01% across four.
+
+### Pricing
+
+`scripts/pricing.py` converts the joint distribution to fair American/decimal
+odds and audits quote sets for internal contradictions via Fréchet bounds and
+decomposition identities. It catches, for example, P(win)=0.60, P(over)=0.55,
+P(win∧over)=0.62 — arithmetically impossible.
+
+**No ROI is claimed and no edge over any real market is asserted.** This prices a
+distribution and checks arithmetic; it does not assert profitability.
