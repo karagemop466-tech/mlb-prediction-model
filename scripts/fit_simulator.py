@@ -71,14 +71,18 @@ WEIGHTS = {
 }
 
 
-def simulate_metrics(env_sd, extra_mult, wo_p, seed=99) -> dict:
+LEVEL_SCALE = 1.0
+
+
+def simulate_metrics(env_sd, extra_mult, wo_p, seed=99, level=None) -> dict:
     S.GAME_ENV_SD = env_sd
     S.EXTRA_INNING_MULT = extra_mult
     S.WALKOFF_MULTIRUN_P = wo_p
     rng = np.random.default_rng(seed)
     base = float(S.BASE_PMF @ np.arange(len(S.BASE_PMF)))
     e = S.HOME_INNING_EDGE
-    r = S.simulate_game(base * np.sqrt(e), base / np.sqrt(e),
+    lv = LEVEL_SCALE if level is None else level
+    r = S.simulate_game(base * np.sqrt(e) * lv, base / np.sqrt(e) * lv,
                         n_sims=N_SIMS, rng=rng, env_sd=env_sd)
     return {
         "p_margin_p1": r.p_margin(1),
@@ -106,29 +110,32 @@ def main() -> None:
     for k, v in tgt.items():
         print(f"  {k:<14} {v:.4f}")
 
-    grid_env = [0.16, 0.20, 0.24, 0.28, 0.32, 0.36]
-    grid_mult = [0.7, 0.9, 1.1, 1.3]
-    grid_wo = [0.10, 0.14, 0.18, 0.22]
+    grid_env = [0.20, 0.24, 0.28, 0.32]
+    grid_mult = [0.6, 0.8, 1.0, 1.2]
+    grid_wo = [0.14, 0.18, 0.22, 0.26]
 
     best, best_loss, best_sim = None, float("inf"), None
     print(f"\nCoordinate search over {len(grid_env)*len(grid_mult)*len(grid_wo)} "
           f"configurations ({N_SIMS:,} sims each)...")
-    for env_sd, mult, wo in itertools.product(grid_env, grid_mult, grid_wo):
-        sim = simulate_metrics(env_sd, mult, wo)
+    for env_sd, mult, wo, lv in itertools.product(grid_env, grid_mult, grid_wo,
+                                                  [0.995, 1.005, 1.015]):
+        sim = simulate_metrics(env_sd, mult, wo, level=lv)
         L = loss(sim, tgt)
         if L < best_loss:
-            best_loss, best, best_sim = L, (env_sd, mult, wo), sim
-            print(f"  env_sd={env_sd:.2f} mult={mult:.2f} wo={wo:.2f}  loss={L:8.3f}  *")
+            best_loss, best, best_sim = L, (env_sd, mult, wo, lv), sim
+            print(f"  env_sd={env_sd:.2f} mult={mult:.2f} wo={wo:.2f} "
+                  f"level={lv:.2f}  loss={L:8.3f}  *")
 
-    env_sd, mult, wo = best
+    env_sd, mult, wo, lv = best
     print(f"\nBest: GAME_ENV_SD={env_sd}  EXTRA_INNING_MULT={mult}  "
-          f"WALKOFF_MULTIRUN_P={wo}   loss={best_loss:.3f}")
+          f"WALKOFF_MULTIRUN_P={wo}  LEVEL={lv}   loss={best_loss:.3f}")
     print(f"\n{'metric':<14}{'target':>10}{'simulated':>12}{'error':>10}")
     for k in WEIGHTS:
         err = best_sim[k] - tgt[k]
         print(f"{k:<14}{tgt[k]:>10.4f}{best_sim[k]:>12.4f}{err:>+10.4f}")
 
     params = {
+        "LEVEL_SCALE": lv,
         "GAME_ENV_SD": env_sd,
         "EXTRA_INNING_MULT": mult,
         "WALKOFF_MULTIRUN_P": wo,

@@ -42,6 +42,49 @@ BASE_PMF = BASE_PMF / BASE_PMF.sum()
 # Fitted parameters (scripts/fit_simulator.py) override the defaults below.
 _PARAM_PATH = PROC / "sim_params.json"
 _FITTED = json.loads(_PARAM_PATH.read_text()) if _PARAM_PATH.exists() else {}
+
+# Per-inning scoring profile from 22,711 games / 362,704 half-innings.
+# Scoring is not uniform across innings: the 1st is +5.7% because the top of the
+# order is guaranteed to bat, the 2nd is -9.6% (bottom of the order), and 7-8
+# decline as relievers take over. See scripts/calibrate_inning_profile.py.
+_PROFILE_PATH = PROC / "inning_profile.json"
+if _PROFILE_PATH.exists():
+    _prof = json.loads(_PROFILE_PATH.read_text())["profile"]
+    INNING_MULT_TOP = np.array([_prof[str(i)]["mult_top"] for i in range(1, 10)])
+    INNING_MULT_BOT = np.array([_prof[str(i)]["mult_bot"] for i in range(1, 10)])
+else:
+    INNING_MULT_TOP = np.array([0.9558, 0.8610, 0.9810, 0.9883, 0.9914,
+                                0.9846, 0.9419, 0.9377, 0.9311])
+    INNING_MULT_BOT = np.array([1.1587, 0.9469, 1.0633, 1.0494, 1.0646,
+                                1.0625, 1.0169, 0.9954, 0.8109])
+# Normalise innings 1-8 to mean 1 so the profile reshapes without changing the
+# overall scoring level (that is controlled by home_rate / away_rate).
+INNING_MULT_TOP = INNING_MULT_TOP / INNING_MULT_TOP[:8].mean()
+INNING_MULT_BOT = INNING_MULT_BOT / INNING_MULT_BOT[:8].mean()
+# The OBSERVED bottom-9th multiplier (0.78) is not a scoring-ability effect: the
+# inning is skipped when the home team leads and truncated the moment it takes
+# the lead. The simulator applies those rules explicitly, so using the observed
+# value here would double-count them and suppress home scoring twice. Use the
+# late-inning ability level (the 8th) as the untruncated estimate instead.
+INNING_MULT_BOT[8] = INNING_MULT_BOT[7]
+# TESTED AND DISABLED BY DEFAULT.
+#
+# The per-inning profile is a real structural fact (inning 1 scores 5.7% above
+# average because the top of the order is guaranteed to bat; inning 2 is 9.6%
+# below). But applying it changed total market skill across 10 markets by
+# EXACTLY 0.0000 (sum 0.0521 both ways) and made mean absolute bias slightly
+# worse (0.0041 vs 0.0029).
+#
+# The reason is straightforward in hindsight: markets settle on END-OF-GAME
+# totals and margins. Reshaping WHICH inning runs arrive in leaves the sum
+# almost unchanged, and the 3x slower sampling buys nothing. Kept behind a flag
+# because it would matter for inning-specific questions (first-5-innings lines,
+# "will there be a run in the 1st"), which this system does not price.
+USE_INNING_PROFILE = False
+
+# Overall scoring level multiplier, fitted alongside the other parameters. The
+# per-inning profile slightly changes the effective level, so it is refit here.
+LEVEL_SCALE = _FITTED.get("LEVEL_SCALE", 1.025)
 MAX_RUNS = len(BASE_PMF) - 1
 _K = np.arange(len(BASE_PMF))
 
@@ -195,6 +238,7 @@ def simulate_game(
     n_sims: int = 20000,
     rng: np.random.Generator | None = None,
     env_sd: float | None = None,
+    inning_profile: bool | None = None,
 ) -> SimResult:
     """Simulate one matchup n_sims times, inning by inning.
 
@@ -229,18 +273,38 @@ def simulate_game(
     pmf_h_by_bucket: list[np.ndarray] = [None] * n_buckets   # type: ignore
     pmf_a_by_bucket: list[np.ndarray] = [None] * n_buckets   # type: ignore
 
+    use_prof = USE_INNING_PROFILE if inning_profile is None else inning_profile
     for b in range(n_buckets):
         ih = np.flatnonzero(bucket_h == b)
         if ih.size:
-            ph = tilted_pmf(home_rate * float(env_h[ih].mean()))
-            pmf_h_by_bucket[b] = ph
-            home[ih] = _sampler(ph, rng, ih.size * 8).reshape(ih.size, 8).sum(axis=1)
+            fh = float(env_h[ih].mean())
+            # Bottom-of-9th PMF (index 8) is stored for the walk-off branch.
+            pmf_h_by_bucket[b] = tilted_pmf(
+                home_rate * fh * (INNING_MULT_BOT[8] if use_prof else 1.0))
+            if use_prof:
+                for k in range(8):
+                    pk = tilted_pmf(home_rate * fh * INNING_MULT_BOT[k])
+                    home[ih] += _sampler(pk, rng, ih.size)
+            else:
+                ph = tilted_pmf(home_rate * fh)
+                pmf_h_by_bucket[b] = ph
+                home[ih] = _sampler(ph, rng, ih.size * 8).reshape(ih.size, 8).sum(axis=1)
+
         ia = np.flatnonzero(bucket_a == b)
         if ia.size:
-            pa = tilted_pmf(away_rate * float(env_a[ia].mean()))
-            pmf_a_by_bucket[b] = pa
-            away[ia] = _sampler(pa, rng, ia.size * 8).reshape(ia.size, 8).sum(axis=1)
-            away[ia] += _sampler(pa, rng, ia.size)   # top of the 9th
+            fa = float(env_a[ia].mean())
+            if use_prof:
+                for k in range(8):
+                    pk = tilted_pmf(away_rate * fa * INNING_MULT_TOP[k])
+                    away[ia] += _sampler(pk, rng, ia.size)
+                p9 = tilted_pmf(away_rate * fa * INNING_MULT_TOP[8])
+                pmf_a_by_bucket[b] = p9
+                away[ia] += _sampler(p9, rng, ia.size)   # top of the 9th
+            else:
+                pa = tilted_pmf(away_rate * fa)
+                pmf_a_by_bucket[b] = pa
+                away[ia] = _sampler(pa, rng, ia.size * 8).reshape(ia.size, 8).sum(axis=1)
+                away[ia] += _sampler(pa, rng, ia.size)
 
     # Bottom 9th: only if the home team is not already ahead.
     needs_bottom9 = home <= away

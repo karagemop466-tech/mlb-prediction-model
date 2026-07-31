@@ -352,3 +352,41 @@ Simulator correctness tests expanded from 19 to **26**, including leakage
 protection for the new model and a direct check that two matchups with the same
 win probability can produce different totals (0.600/0.596 win probability ->
 10.29/7.26 expected total).
+
+### Per-inning scoring profile: real effect, zero market value (2026-07-31)
+
+Discovered that scoring is **not uniform across innings**. Extracted from
+Retrosheet line scores (fields 19/20 store innings as digit strings, giving 10
+seasons without new downloads): 22,711 games, 362,704 half-innings.
+
+| Inning | Multiplier | Why |
+|---|---|---|
+| 1 | **1.057** | Top of the order is guaranteed to bat |
+| 2 | **0.904** | Bottom of the order |
+| 3–6 | ~1.02 | Steady state |
+| 7–8 | 0.98 / 0.97 | Relievers replace tiring starters |
+
+The home team's first inning is the single strongest cell at **1.159x**. The
+2026 play-by-play showed the same shape independently (inning 1 = 0.544, inning
+2 = 0.453), confirming it is structural rather than one season's noise.
+
+**Implemented, tested, and disabled by default.** Across 10 markets and 17,060
+games the change in total skill was **exactly 0.0000** (sum 0.0521 either way),
+and mean absolute bias got slightly worse (0.0041 vs 0.0029).
+
+The reason is clear in hindsight: markets settle on **end-of-game** totals and
+margins. Reshaping which inning runs arrive in barely moves the sum, and the
+per-inning sampling made simulation ~3x slower. Kept behind
+`USE_INNING_PROFILE` because it would matter for inning-specific questions
+(first-5-innings lines, "run in the 1st"), which this system does not price.
+
+**A double-count caught during implementation.** The observed bottom-9th
+multiplier is 0.78, which looks like weak late scoring. It is not: the inning is
+skipped when the home team leads and truncated the instant it takes the lead.
+The simulator already applies both rules, so using the observed value suppressed
+home scoring twice — P(home win) fell from 0.528 to 0.519. Replaced with the
+8th-inning level as the untruncated estimate.
+
+**Net gain from the session:** refitting with a new `LEVEL_SCALE` parameter cut
+fit loss from 0.772 to **0.645**, the best so far. E[total] error fell to +0.05
+runs and margin variance to within 5%.

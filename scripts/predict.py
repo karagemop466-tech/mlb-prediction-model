@@ -317,7 +317,8 @@ def main() -> None:
             "fair_ml_home", "game_time",
             "p_over_8_5", "p_over_9_5", "p_one_run", "p_extras",
             "p_home_by_1", "p_away_by_1", "p_home_win_and_over",
-            "p_both_score", "exp_total"]
+            "p_away_win_and_over", "p_both_score", "p_margin_ge3",
+            "exp_total", "exp_home_runs", "exp_away_runs"]
     cols = [c for c in cols if c in out.columns]
     REPORTS.mkdir(exist_ok=True)
     out[cols].to_csv(REPORTS / "today.csv", index=False)
