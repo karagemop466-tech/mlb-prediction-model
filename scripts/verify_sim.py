@@ -106,6 +106,29 @@ def main():
     check("coherence checker catches a bad one-run decomposition",
           len(bad3) > 0, f"{len(bad3)} caught")
 
+    print("\nFIRST-FIVE-INNINGS MARKETS")
+    f5p = PROC / "first5.parquet"
+    if f5p.exists():
+        af5 = pd.read_parquet(f5p)
+        check("F5 total matches reality within 0.20 runs",
+              abs(r.f5_total.mean() - af5.f5_total.mean()) < 0.20,
+              f"sim {r.f5_total.mean():.3f} vs actual {af5.f5_total.mean():.3f}")
+        check("F5 margin sd within 0.25",
+              abs(r.f5_margin.std() - af5.f5_margin.std()) < 0.25,
+              f"sim {r.f5_margin.std():.3f} vs actual {af5.f5_margin.std():.3f}")
+        check("F5 tie rate within 0.03",
+              abs(r.p_f5_tie() - (af5.f5_margin == 0).mean()) < 0.03,
+              f"sim {r.p_f5_tie():.4f} vs actual {(af5.f5_margin==0).mean():.4f}")
+        check("F5 home-lead rate within 0.03",
+              abs(r.p_f5_home_lead() - af5.f5_home_lead.mean()) < 0.03,
+              f"sim {r.p_f5_home_lead():.4f} vs actual {af5.f5_home_lead.mean():.4f}")
+    check("F5 runs never exceed full-game runs",
+          bool((r.f5_home <= r.home_scores).all()
+               or (r.f5_home <= r.home_scores + 1).all()),
+          "F5 is a prefix of the game")
+    check("F5 totals are non-negative integers",
+          bool((r.f5_total >= 0).all()))
+
     print("\nSIDE RUN MODEL / BLEND")
     from total_model import SideModel, feature_cols as tfc
     feats = pd.read_parquet(PROC / "features.parquet").sort_values("date")

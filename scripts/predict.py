@@ -262,6 +262,9 @@ def predict(day: date) -> pd.DataFrame:
             "p_away_win_and_over": r.p_joint(False, 8.5),
             "p_both_score": r.p_both_score(),
             "p_margin_ge3": float((np.abs(r.margin) >= 3).mean()),
+            "p_f5_home_lead": r.p_f5_home_lead(),
+            "p_f5_over_4_5": r.p_f5_over(4.5),
+            "p_f5_tie": r.p_f5_tie(),
             "exp_total": float(r.total.mean()),
             "fair_ml_home_sim": PRICE.prob_to_american(r.p_home_win()),
             "exp_home_runs": float(exp_h[i]),
@@ -398,6 +401,7 @@ def main() -> None:
             "p_home_by_1", "p_away_by_1", "p_home_win_and_over",
             "p_away_win_and_over", "p_both_score", "p_margin_ge3",
             "exp_total", "exp_home_runs", "exp_away_runs",
+            "p_f5_home_lead", "p_f5_over_4_5", "p_f5_tie",
             "temp_f", "humidity", "air_density_index", "wind_out",
             "gust_out", "is_closed"]
     cols = [c for c in cols if c in out.columns]

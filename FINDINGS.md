@@ -757,3 +757,108 @@ Seven rejected families, one success:
 The refined lesson: not redundant is necessary but not sufficient. Weather works
 because it moves scoring by ~1.5 runs across its range. The matchup is real,
 novel, correctly measured — and moves it by 0.19.
+
+---
+
+## First-five-innings markets, and a falsified hypothesis (2026-08-01)
+
+### The dilution hypothesis was wrong
+
+The pitch-arsenal matchup produced a real, non-redundant signal (r=0.060 with
+margin) that added nothing to the model. I attributed that to **dilution**: a
+starter throws ~90 of ~300 pitches, so the bullpen washes out his contribution.
+
+That was a falsifiable claim, so I tested it. If dilution is the cause, the
+matchup must correlate more strongly with first-five-innings scoring, where the
+starter is usually still pitching.
+
+| Target | corr with matchup | sd |
+|---|---|---|
+| F5 margin | +0.0519 | 3.32 |
+| Full margin | +0.0553 | 4.44 |
+| **Ratio F5/full** | **0.939** | |
+
+**Below 1. The hypothesis is falsified.** The effect in runs is also smaller on
+F5 (0.172) than on the full game (0.246).
+
+A control makes this precise. Every feature loses correlation on F5, because it
+is a smaller and noisier sample:
+
+| Feature | F5 | Full | Ratio |
+|---|---|---|---|
+| d_rdiff_100 | 0.136 | 0.166 | 0.820 |
+| d_pythag | 0.127 | 0.151 | 0.841 |
+| d_rf_50 | 0.088 | 0.106 | 0.825 |
+| **d_mu_xwoba (matchup)** | 0.052 | 0.055 | **0.940** |
+
+So the matchup does hold up *relatively* better on F5 than team-quality features
+do — dilution is real but weak. It is not why the feature failed. The feature
+failed because the effect is small everywhere.
+
+One further detail, from 2026 inning-level data: the matchup signal lives
+entirely in the **first time through the order**.
+
+| Innings | corr(matchup, margin) |
+|---|---|
+| 1-3 | +0.0368 |
+| 4-5 | −0.0102 |
+
+Hitters adjust after seeing an arsenal once. Walk-forward on F5 markets
+confirmed the conclusion: matchup adds −0.0002 to F5 total, −0.0001 to F5
+margin, −0.0002 to F5 home lead. Rejected on every target.
+
+### The F5 infrastructure turned out to be the real find
+
+Extracted first-five scoring for **24,266 games** from Retrosheet line scores
+(fields 19/20 store innings as digit strings) plus the 2026 collector.
+
+The simulator reproduces F5 **without any additional fitting**:
+
+| Metric | Simulated | Actual |
+|---|---|---|
+| F5 total | 5.107 | 5.114 |
+| F5 margin sd | 3.505 | 3.398 |
+| P(home leads after 5) | 0.4449 | 0.4550 |
+| P(tied after 5) | 0.1519 | 0.1484 |
+
+F5 was never a fitting target, so this is a genuine out-of-sample validation of
+the inning-level generative model. Had the simulator been quietly overfit to
+full-game aggregates, F5 would have exposed it.
+
+### F5 markets have real skill
+
+Walk-forward, 17,620 games:
+
+| Market | Bias | Skill |
+|---|---|---|
+| win (full game) | +0.0013 | +0.0255 |
+| **f5_home_lead** | **−0.0061** | **+0.0150** |
+| win_and_under | −0.0007 | +0.0110 |
+| win_and_over | +0.0020 | +0.0094 |
+| over 8.5 | −0.0024 | +0.0093 |
+| **f5_over_4.5** | −0.0139 | **+0.0055** |
+| f5_tie | −0.0005 | −0.0008 |
+
+**F5 home lead is now the second-most-skillful market in the system**, ahead of
+every totals market. The reason is the mirror image of the dilution story: over
+five innings the outcome depends more on the two starters and less on bullpen
+and late-inning randomness, so team-quality signal survives better.
+
+Simulator correctness suite expanded to **32/32**.
+
+### Updated tally
+
+| Family | Verdict |
+|---|---|
+| Team Statcast | rejected |
+| Pitcher Statcast | rejected |
+| Inning profile | rejected (0.0000) |
+| Bullpen / travel / momentum | rejected |
+| Starting lineups | rejected |
+| Player Statcast | rejected |
+| Pitch matchup | rejected (effect too small, dilution ruled out) |
+| **Weather** | **shipped: totals skill +0.0051 -> +0.0093** |
+| **F5 markets** | **shipped: new market at +0.0150 skill** |
+
+Eight rejections, two successes. Both successes came from modeling **structure**
+(external conditions, game phase) rather than **participants**.

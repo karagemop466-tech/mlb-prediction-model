@@ -103,6 +103,11 @@ def calib_curve(p: np.ndarray, y: np.ndarray, bins: int = 8) -> list[dict]:
 def run(start_season: int = 2019) -> dict:
     df = pd.read_parquet(PROC / "features.parquet").sort_values("date")
     df = load_weather(df)
+    f5p = PROC / "first5.parquet"
+    if f5p.exists():
+        f5 = pd.read_parquet(f5p)
+        df = df.merge(f5[["date", "home", "away", "f5_total", "f5_margin",
+                          "f5_home_lead"]], on=["date", "home", "away"], how="left")
     df = df.dropna(subset=["home_win"]).reset_index(drop=True)
     fc = feature_cols(df)
     fc_wx = tm_feature_cols(df)
@@ -136,7 +141,8 @@ def run(start_season: int = 2019) -> dict:
         preds = {k: np.zeros(len(te)) for k in
                  ("win", "over85", "under85", "one_run", "extras",
                   "hwin_by1", "awin_by1", "win_and_over", "win_and_under",
-                  "both_score", "margin_ge3")}
+                  "both_score", "margin_ge3",
+                  "f5_home_lead", "f5_over_4_5", "f5_tie")}
 
         # Cache rate solutions; solving per game is the expensive step.
         cache: dict[tuple[int, int], tuple[float, float]] = {}
@@ -156,6 +162,9 @@ def run(start_season: int = 2019) -> dict:
                 ((r.margin > 0) & (r.total < 8.5)).mean())
             preds["both_score"][i] = r.p_both_score()
             preds["margin_ge3"][i] = float((np.abs(r.margin) >= 3).mean())
+            preds["f5_home_lead"][i] = r.p_f5_home_lead()
+            preds["f5_over_4_5"][i] = r.p_f5_over(4.5)
+            preds["f5_tie"][i] = r.p_f5_tie()
 
         hs, as_ = te.home_score.values, te.away_score.values
         m, tot = hs - as_, hs + as_
@@ -171,12 +180,26 @@ def run(start_season: int = 2019) -> dict:
             "win_and_under": ((m > 0) & (tot < 8.5)).astype(float),
             "both_score": ((hs > 0) & (as_ > 0)).astype(float),
             "margin_ge3": (np.abs(m) >= 3).astype(float),
+            "f5_home_lead": (te.get("f5_margin", pd.Series(np.nan, index=te.index)) > 0)
+                            .astype(float).where(te.get("f5_margin").notna()
+                            if "f5_margin" in te else False, np.nan).values
+                            if "f5_margin" in te else np.full(len(te), np.nan),
+            "f5_over_4_5": (te.get("f5_total", pd.Series(np.nan, index=te.index)) > 4.5)
+                           .astype(float).where(te.get("f5_total").notna()
+                           if "f5_total" in te else False, np.nan).values
+                           if "f5_total" in te else np.full(len(te), np.nan),
+            "f5_tie": (te.get("f5_margin", pd.Series(np.nan, index=te.index)) == 0)
+                      .astype(float).where(te.get("f5_margin").notna()
+                      if "f5_margin" in te else False, np.nan).values
+                      if "f5_margin" in te else np.full(len(te), np.nan),
         }
 
         for market, p in preds.items():
-            y = actual[market]
-            if np.isnan(y).all():
+            y = np.asarray(actual[market], dtype=float)
+            ok = ~np.isnan(y)
+            if ok.sum() < 100:
                 continue
+            p, y = p[ok], y[ok]
             rows.append({
                 "season": int(s), "market": market, "n": int(len(y)),
                 "pred_mean": float(p.mean()), "actual_mean": float(y.mean()),

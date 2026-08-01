@@ -415,7 +415,8 @@ def build_markets(preds, meta) -> str:
                 f"<td>{gv('p_over_8_5'):.3f}</td>"
                 f"<td>{gv('p_one_run'):.3f}</td>"
                 f"<td>{gv('p_extras'):.3f}</td>"
-                f"<td>{gv('p_home_by_1'):.3f}</td>"
+                f"<td>{gv('p_f5_home_lead'):.3f}</td>"
+                f"<td>{gv('p_f5_over_4_5'):.3f}</td>"
                 f"<td>{gv('p_home_win_and_over'):.3f}</td></tr>")
 
     body = f"""
@@ -427,8 +428,8 @@ can exceed its marginals.</div>
 
 <h2>Today's markets</h2>
 <table><thead><tr><th>Game</th><th>P(home)</th><th>E[total]</th><th>Over 8.5</th>
-<th>1-run</th><th>Extras</th><th>Home by 1</th><th>Win&amp;Over</th></tr></thead>
-<tbody>{game_rows or '<tr><td colspan="8">No games today.</td></tr>'}</tbody></table>
+<th>1-run</th><th>Extras</th><th>F5 home</th><th>F5 o4.5</th><th>Win&amp;Over</th></tr></thead>
+<tbody>{game_rows or '<tr><td colspan="9">No games today.</td></tr>'}</tbody></table>
 
 <h2>Market backtest (walk-forward, out of sample)</h2>
 <table><thead><tr><th>Market</th><th>Games</th><th>Predicted</th><th>Actual</th>
@@ -441,6 +442,17 @@ skill. Structural markets like one-run games and extra innings are <i>calibrated
 (bias under 0.01) but carry almost no per-game skill &mdash; whether a specific game ends
 by one run is close to irreducible noise. Reporting that rather than dressing up a
 near-zero number as an edge.</p>
+
+<h2>First-five-innings markets (2026-08-01)</h2>
+<p class="note">The simulator already generates runs inning by inning, so
+first-five-innings markets came almost free. They are also a genuine
+<b>out-of-sample validation</b> of the generative model: F5 was never a fitting
+target, yet the simulator reproduces it closely &mdash; total 5.11 vs 5.11 actual,
+tie rate 15.2% vs 14.8%, home-lead rate 44.5% vs 45.5%.</p>
+<p class="note"><b>F5 home lead now carries the second-highest skill of any
+market (+0.0150)</b>, behind only the full-game winner and ahead of totals. The
+starter is still pitching, so team-quality signal is less diluted by bullpen
+variance.</p>
 
 <h2>Side-specific run model (2026-07-31 upgrade)</h2>
 <p class="note">The first version derived both teams' scoring rates from the win probability
