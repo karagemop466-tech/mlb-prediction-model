@@ -283,7 +283,8 @@ def log_predictions(g: pd.DataFrame) -> None:
             "fair_ml_home", "predicted_at", "model",
             "p_over_8_5", "p_over_9_5", "p_one_run", "p_extras",
             "p_home_by_1", "p_away_by_1", "p_home_win_and_over",
-            "p_away_win_and_over", "p_both_score", "p_margin_ge3", "exp_total"]
+            "p_away_win_and_over", "p_both_score", "p_margin_ge3",
+            "p_f5_home_lead", "p_f5_over_4_5", "p_f5_tie", "exp_total"]
     cols = [c for c in cols if c in g.columns]
     out = g[cols].copy()
     REPORTS.mkdir(exist_ok=True)

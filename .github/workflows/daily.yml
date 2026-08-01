@@ -48,6 +48,12 @@ jobs:
       - name: Build features
         run: python scripts/features.py
 
+      # first5.parquet is a derived artifact and is gitignored, so CI must
+      # rebuild it. Without this the F5 markets silently vanish from live
+      # predictions and their correctness tests skip instead of failing.
+      - name: Build first-five-innings table
+        run: cd scripts && python first5.py
+
       - name: Leakage audit (blocks deploy on failure)
         run: python scripts/audit_leakage.py
 

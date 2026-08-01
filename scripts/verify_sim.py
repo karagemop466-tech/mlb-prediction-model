@@ -108,6 +108,11 @@ def main():
 
     print("\nFIRST-FIVE-INNINGS MARKETS")
     f5p = PROC / "first5.parquet"
+    # Fail loudly rather than skipping. A missing derived artifact previously
+    # caused four F5 tests to skip silently, hiding the fact that CI never
+    # built the table and live predictions had no F5 markets.
+    check("first5.parquet exists (required for F5 markets)", f5p.exists(),
+          "run scripts/first5.py")
     if f5p.exists():
         af5 = pd.read_parquet(f5p)
         check("F5 total matches reality within 0.20 runs",
