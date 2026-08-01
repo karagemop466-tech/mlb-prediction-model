@@ -1,0 +1,56 @@
+{
+  "experiment": "pitch-arsenal vs lineup matchup simulation",
+  "hypothesis": "interaction, not aggregate quality: does THIS arsenal exploit THESE hitters' specific weaknesses? Team rolling form cannot encode this because it averages over all arsenals a team happened to face.",
+  "why_different_from_prior_six": "The previous six rejected families all measured aggregate quality and were redundant with team form (corr 0.51-0.59). This one measures interaction and is NOT redundant (corr 0.11-0.15). It fails for a different reason, which is the useful part.",
+  "method": {
+    "problem": "batter-vs-specific-pitcher history averages ~1.6 PA per pair - unusable",
+    "solution": "factor the matchup through pitch TYPES, which have usable sample (~120-150 PA per batter-season): matchup = sum_p arsenal_share[p] * batter_xwoba[batter, p, pitcher_hand]",
+    "shrinkage": "empirical-Bayes toward league mean per (family, hand, season), k=60 batted balls. Median batter cell has only ~15 batted balls, so without shrinkage this is a noise generator.",
+    "handedness": "platoon split respected using modal p_throws per pitcher from the pitch data (924 pitchers: 690 R, 234 L). An early version picked whichever hand appeared first, which would have corrupted every score."
+  },
+  "data": {
+    "pitch_chunks": 196,
+    "pitcher_game_arsenals": 23555,
+    "batter_family_hand_rows": 547592,
+    "games_with_matchup": 5212,
+    "coverage": "28.6% (2022-2026, limited by cached chunks + hand mapping)"
+  },
+  "signal_is_real": {
+    "corr_d_mu_xwoba_vs_margin": 0.0595,
+    "p_value": 1.7e-05,
+    "corr_h_mu_vs_home_score": 0.0391,
+    "corr_a_mu_vs_away_score": 0.0493,
+    "note": "both directional checks positive with correct sign - a favourable matchup produces more runs for the correct team",
+    "seasonal_consistency": {
+      "early": 0.0656,
+      "mid": 0.0587,
+      "late": 0.0515
+    }
+  },
+  "redundancy": {
+    "d_pythag": 0.1112,
+    "d_rf_50": 0.1549,
+    "d_rdiff_100": 0.1212,
+    "verdict": "NOT redundant - genuinely new information"
+  },
+  "walk_forward_result": {
+    "home_win_base": 0.5568,
+    "home_win_with": 0.5562,
+    "delta": -0.0006,
+    "bar": 0.0103,
+    "total_base_corr": 0.1536,
+    "total_with_corr": 0.1531,
+    "delta_corr": -0.0005,
+    "restricted_to_covered_games": {
+      "n": 6621,
+      "base": 0.5605,
+      "with": 0.5568,
+      "delta": -0.0036
+    }
+  },
+  "verdict": "REJECTED - not shipped",
+  "why_it_failed": "EFFECT SIZE, not redundancy and not measurement error. The matchup term moves expected quality by 1 sd = 0.0129 xwOBA = roughly 0.19 runs per game. Margin standard deviation is 4.47 runs. The theoretical maximum correlation such an effect could produce is ~0.042; the observed 0.0595 is already AT or slightly above that ceiling, meaning the measurement is if anything better than expected. It explains 0.35% of margin variance. A 0.06 correlation cannot move a 56%-accurate classifier.",
+  "dilution": "A starter throws ~90 of ~300 pitches in a game and faces the lineup 2-3 times. Even a perfectly measured starter matchup is diluted by the bullpen, which this does not model. Signal was strongest in high-scoring games (r=0.085) and absent in low-scoring ones (r=0.023), consistent with starters being removed early when struggling.",
+  "what_would_be_needed": "To be usable this would need either (a) inning-level or first-5-innings markets where the starter's arsenal actually operates undiluted, or (b) bullpen arsenal modeling to cover the remaining ~210 pitches. Both are real extensions, neither is a small change.",
+  "kept": "scripts/arsenal.py and scripts/matchup_features.py remain in the repo. The arsenal and batter-split tables are the prerequisite for any first-5-innings market work."
+}

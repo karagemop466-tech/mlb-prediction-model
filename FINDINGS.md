@@ -626,3 +626,134 @@ Against one large success: **weather**, which lifted totals skill from +0.0051
 to +0.0097. The pattern is consistent — features that describe *who is playing*
 are redundant with team form, while features describing *external conditions*
 are not.
+
+---
+
+## Pitch arsenal vs lineup matchup (2026-08-01)
+
+The first rejected hypothesis that failed for a **different reason** than the
+previous six. Worth reading for that alone.
+
+### The question
+
+Not "is this pitcher good" or "are these hitters good" — both already covered by
+team form. Instead: does *this specific arsenal* exploit *these specific
+hitters' weaknesses*? A 50%-slider pitcher facing a lineup that cannot hit
+sliders is a different proposition from the same pitcher facing a lineup that
+crushes them, even at identical OPS and ERA.
+
+### Solving the sample-size problem
+
+Direct batter-vs-pitcher history is unusable — measured at **~1.6 PA per pair**.
+Even career-long, most pairs have under 20 PA against a ~200 PA stabilisation
+threshold. Anyone modeling batter-vs-pitcher splits directly is fitting noise.
+
+The matchup was therefore factored through pitch **types**, which do have sample
+(~120-150 PA per batter-season):
+
+    matchup = sum over families  arsenal_share[pitcher, p] * batter_xwoba[batter, p, hand]
+
+| Component | Volume |
+|---|---|
+| Pitch chunks downloaded (with `pitch_type`) | 196 |
+| Pitcher-game arsenals | 23,555 |
+| Batter × family × hand rows | 547,592 |
+| Games with a matchup score | 5,212 |
+
+Batter values are empirical-Bayes shrunk toward the league mean per
+(family, hand, season) with k=60 batted balls. The median cell holds only ~15
+batted balls, so without shrinkage this would be a noise generator with a
+credible-sounding name.
+
+**A bug caught before it mattered:** an early version selected the batter's
+platoon split by whichever handedness appeared first in the lookup rather than
+the actual starter's hand. Platoon is one of the largest splits in baseball;
+this would have corrupted every score. Fixed by deriving modal `p_throws` per
+pitcher from the pitch data (924 pitchers, 690 R / 234 L).
+
+### The signal is real
+
+| Check | Value |
+|---|---|
+| corr(d_mu_xwoba, margin) | **+0.0595** (p=1.7e-05) |
+| corr(h_mu_xwoba, home runs scored) | +0.039 |
+| corr(a_mu_xwoba, away runs scored) | +0.049 |
+| Seasonal consistency (early/mid/late) | 0.066 / 0.059 / 0.052 |
+
+Both directional checks carry the correct sign: a favourable matchup produces
+more runs *for the correct team*. This is not a spurious fit.
+
+### And it is NOT redundant
+
+| Existing feature | corr with matchup score |
+|---|---|
+| d_rf_50 (team rolling runs) | **0.155** |
+| d_rdiff_100 | 0.121 |
+| d_pythag | 0.111 |
+
+Compare with the lineup families that preceded it: lineup OPS correlated 0.508
+with team rolling runs, lineup xwOBA 0.590. **This feature contains genuinely new
+information.** That is exactly what the hypothesis predicted.
+
+### It still failed — on effect size
+
+| Target | Base | With matchup | Δ |
+|---|---|---|---|
+| Home win | 0.5568 | 0.5562 | **−0.0006** |
+| Total runs (corr) | 0.1536 | 0.1531 | −0.0005 |
+| Home win, covered games only | 0.5605 | 0.5568 | −0.0036 |
+
+The arithmetic explains why:
+
+```
+matchup spread (1 sd)     0.0129 xwOBA  ~=  0.19 runs/game
+margin standard deviation                   4.47 runs
+theoretical max correlation                 ~0.042
+observed correlation                         0.0595
+```
+
+The observed correlation is **at or slightly above** the ceiling implied by the
+effect size, so the measurement is if anything better than expected. The
+matchup explains **0.35% of margin variance**. A 0.06 correlation cannot move a
+56%-accurate classifier.
+
+### Why the effect is small: dilution
+
+A starter throws ~90 of a game's ~300 pitches and faces the lineup 2-3 times.
+The bullpen — unmodeled here — throws the rest. The data shows this directly:
+
+| Game type | corr(matchup, margin) |
+|---|---|
+| Low-scoring (≤7 runs) | +0.023 (n.s.) |
+| Mid (8-10) | +0.067 |
+| High (11+) | **+0.085** |
+
+The signal is strongest exactly where starters stayed in and got hit, and absent
+where they were pulled early — consistent with dilution rather than absence.
+
+### What would make it usable
+
+Two real extensions, neither small:
+
+1. **First-5-innings markets**, where the starter's arsenal operates undiluted.
+   The arsenal and split tables built here are the prerequisite for that work.
+2. **Bullpen arsenal modeling** to cover the remaining ~210 pitches.
+
+### Updated tally
+
+Seven rejected families, one success:
+
+| Family | Redundant? | Verdict |
+|---|---|---|
+| Team Statcast | yes | slightly negative |
+| Pitcher Statcast | yes | −0.0001 |
+| Inning profile | n/a | exactly 0.0000 |
+| Bullpen / travel / momentum | yes | inside noise |
+| Starting lineups | yes (0.51) | −0.0003 |
+| Player Statcast | yes (0.59) | −0.0005 |
+| **Pitch matchup** | **no (0.15)** | **−0.0006, effect too small** |
+| **Weather** | **no** | **+0.0046 totals skill — shipped** |
+
+The refined lesson: not redundant is necessary but not sufficient. Weather works
+because it moves scoring by ~1.5 runs across its range. The matchup is real,
+novel, correctly measured — and moves it by 0.19.
