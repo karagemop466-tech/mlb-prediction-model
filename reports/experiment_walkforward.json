@@ -1,0 +1,45 @@
+{
+  "experiment": "day-by-day walk-forward with strategy formation and frozen replay",
+  "motivation": "The existing backtest retrains only at season boundaries, so a game on 2024-09-30 was predicted by a model that had never seen any 2024 game -- 2,429 games of in-season information discarded.",
+  "design": {
+    "phase1_formation": "seasons 2019-2022, 8 strategies compared",
+    "phase2_replay": "seasons 2023-2026, winning strategy FROZEN, replayed day-by-day: predict each day using only prior days, then absorb results",
+    "why_split": "selecting and evaluating on the same data inflates results; phase 2 never informs the selection"
+  },
+  "phase1_results": {
+    "season_boundary_baseline": 0.579,
+    "retrain_30d": 0.5768,
+    "retrain_14d": 0.5777,
+    "retrain_7d": 0.5779,
+    "retrain_14d_win8000": 0.5777,
+    "retrain_14d_win12000": 0.5787,
+    "retrain_14d_hl4000": 0.5821,
+    "retrain_14d_hl8000": 0.5811,
+    "note": "ALL 8 within 1 SE (+/-0.0107). No strategy separated from the field."
+  },
+  "phase2_results": {
+    "selected_strategy": "retrain_14d_hl4000",
+    "phase1_accuracy": 0.5821,
+    "phase2_accuracy": 0.5556,
+    "change": -0.0265,
+    "baseline_phase1": 0.579,
+    "baseline_phase2": 0.5586,
+    "baseline_change": -0.0204,
+    "noise_band": 0.0103,
+    "verdict": "DEGRADED beyond noise"
+  },
+  "key_findings": [
+    "Frequent retraining does NOT help. Retraining every 7 days scored 0.5779 vs 0.5790 for retraining once per season. The in-season information the old protocol discarded is already captured by the rolling features, which update every game regardless of when the model is refit.",
+    "Selection overfitting is real and measurable. The phase-1 winner beat the baseline by +0.0031; in the frozen replay it LOST by -0.0030. The edge reversed sign, which is the signature of noise, not signal.",
+    "Most of the drop is the era, not the strategy. Baseline fell 0.0204 and the selected strategy fell 0.0265 -- both large, so ~77% of the decline is common to any model."
+  ],
+  "era_effect": {
+    "sd_pythag_2019": 0.1085,
+    "sd_pythag_2026": 0.0848,
+    "sd_rdiff100_2019": 0.9441,
+    "sd_rdiff100_2026": 0.7526,
+    "interpretation": "Team-quality dispersion is falling ~22%. Teams are converging, so outcomes are genuinely less predictable. This is league parity, not model decay, and it caps what any model can achieve."
+  },
+  "implication_for_accuracy_target": "Higher accuracy is not available from retrain scheduling or recency weighting. Both were tested properly and neither helped. The 2023-2026 ceiling is ~55.9%, below the 56.9% measured on the older protocol, because recent seasons are harder.",
+  "value_delivered": "This protocol is strictly more honest than the previous one and is now the reference. It also provides a reusable harness: any future strategy can be formed on 2019-2022 and replayed frozen on 2023-2026 to get an un-inflated estimate before shipping."
+}

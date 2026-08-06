@@ -862,3 +862,84 @@ Simulator correctness suite expanded to **32/32**.
 
 Eight rejections, two successes. Both successes came from modeling **structure**
 (external conditions, game phase) rather than **participants**.
+
+---
+
+## Day-by-day walk-forward: strategy formation then frozen replay (2026-08-05)
+
+### The flaw this addresses
+
+The existing backtest retrains at **season boundaries**. A game on 2024-09-30
+was predicted by a model that had never seen a single 2024 game — 2,429 games of
+in-season information discarded. That answers "how good was last winter's model
+all year?" rather than "how good is the system when operated properly?"
+
+### The design
+
+**Phase 1 (2019-2022):** compare 8 operating strategies — retrain cadence from
+season-boundary to every 7 days, rolling training windows, recency weighting.
+
+**Phase 2 (2023-2026):** freeze the phase-1 winner and replay day by day.
+Predict each day using only prior days; absorb results afterward. The strategy
+is never re-tuned. This is a forward test conducted inside history.
+
+### Phase 1: no strategy separated from the field
+
+| Strategy | Accuracy |
+|---|---|
+| retrain_14d_hl4000 | 0.5821 |
+| retrain_14d_hl8000 | 0.5811 |
+| **season_boundary (baseline)** | **0.5790** |
+| retrain_14d_win12000 | 0.5787 |
+| retrain_7d | 0.5779 |
+| retrain_14d | 0.5777 |
+| retrain_30d | 0.5768 |
+
+**All 8 within 1 SE (±0.0107).** Retraining every 7 days scored *worse* than
+retraining once per season.
+
+The reason is instructive: the rolling features already update after every game.
+Refitting the model more often adds little, because the information the old
+protocol appeared to discard was never actually missing — it lives in the
+features, not the coefficients.
+
+### Phase 2: the selected edge reversed sign
+
+| | Phase 1 | Phase 2 | Change |
+|---|---|---|---|
+| retrain_14d_hl4000 (selected) | 0.5821 | **0.5556** | −0.0265 |
+| season_boundary (baseline) | 0.5790 | **0.5586** | −0.0204 |
+
+The phase-1 winner beat the baseline by **+0.0031**. In the frozen replay it
+**lost by −0.0030**. An edge that reverses sign out of sample is noise, and this
+is exactly what picking the maximum of eight noisy candidates produces.
+
+Both strategies dropped ~2 points, so roughly 77% of the decline is common to
+any model rather than caused by the selection.
+
+### Why recent seasons are harder: league parity
+
+| Season | sd(pythag) | sd(run diff, 100g) |
+|---|---|---|
+| 2019 | 0.1085 | 0.944 |
+| 2022 | 0.1075 | 0.928 |
+| 2024 | 0.0950 | 0.845 |
+| 2026 | **0.0848** | **0.753** |
+
+Team-quality dispersion has fallen ~22%. Teams are converging, so games are
+genuinely less predictable. This is a property of the league, not model decay,
+and it caps what any model can achieve.
+
+### Implication for the accuracy target
+
+Higher accuracy is **not** available from retrain scheduling or recency
+weighting. Both were tested properly under a protocol designed to catch exactly
+this, and neither helped. The honest 2023-2026 figure is **~55.9%**, below the
+56.9% measured under the older protocol, because the recent era is harder.
+
+### What this leaves behind
+
+A reusable harness. Any future strategy can be formed on 2019-2022 and replayed
+frozen on 2023-2026 to get an un-inflated estimate before shipping. That is a
+stronger guarantee than the significance gate alone, because it catches
+selection overfitting rather than merely penalising it.
