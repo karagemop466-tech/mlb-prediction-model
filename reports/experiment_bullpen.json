@@ -1,0 +1,46 @@
+{
+  "experiment": "bullpen availability from measured reliever workload",
+  "why_retried": "research_loop.py rejected a bullpen hypothesis earlier (-0.0023), but that used a crude proxy: total runs allowed in prior 3 days, which conflates starter and reliever performance. This version measures actual reliever PITCHES from pitch-level data.",
+  "data": {
+    "team_days_of_workload": 25949,
+    "games_covered": 12718,
+    "coverage": "52.1% (2021-2026, limited by cached pitch chunks)"
+  },
+  "features": [
+    "bp_pitches_1d",
+    "bp_pitches_2d",
+    "bp_pitches_3d",
+    "bp_arms_used_3d",
+    "bp_heavy_arms_2d"
+  ],
+  "sanity": {
+    "mean_1d_pitches": 63.6,
+    "mean_3d_pitches": 167.9,
+    "mean_arms_3d": 9.0,
+    "note": "consistent with ~140 bullpen pitches per game"
+  },
+  "signal_direction_correct": {
+    "d_bp_pitches_3d_vs_home_win": -0.0345,
+    "p": 0.000141,
+    "d_bp_heavy_arms_2d_vs_margin": -0.0375,
+    "quintile_monotonic": "home bullpen 3-day pitches 95 -> 244 maps to away runs 4.363 -> 4.495, monotonic",
+    "interpretation": "a more overworked bullpen does lose more, as expected"
+  },
+  "walk_forward_result": {
+    "home_win_base": 0.5638,
+    "home_win_with": 0.5638,
+    "delta": 0.0,
+    "bar": 0.0091,
+    "total_base_corr": 0.1581,
+    "total_with_corr": 0.158,
+    "delta_corr": -0.0001,
+    "restricted_n": 12718,
+    "restricted_base": 0.5494,
+    "restricted_with": 0.5509,
+    "restricted_delta": 0.0015,
+    "restricted_bar": 0.0106
+  },
+  "verdict": "REJECTED - not shipped",
+  "why": "Same failure mode as the pitch matchup: correct sign, statistically significant raw correlation, but the effect is far too small to move a 56%-accurate classifier. A 0.035 correlation explains ~0.1% of variance.",
+  "bug_caught": "First run silently produced zero rows because the arsenal pitch cache was trimmed and lacks inning_topbot/home_team. pd.read_parquet with a columns filter returned nothing rather than erroring. Fixed by switching to the pitcher_sc cache and adding an explicit schema probe that raises."
+}

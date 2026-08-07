@@ -1,0 +1,52 @@
+{
+  "experiment": "home-plate umpire assignments and tendencies",
+  "hypothesis": "umpire strike zone is STRUCTURAL (like weather) rather than a participant attribute, so it should not be redundant with team form",
+  "data": {
+    "games_with_hp_umpire": 22935,
+    "distinct_umpires": 137,
+    "coverage": "~100% for completed seasons",
+    "median_prior_games": 95
+  },
+  "features": [
+    "ump_runs_tend",
+    "ump_k_tend",
+    "ump_bb_tend",
+    "ump_hwin_tend",
+    "ump_games"
+  ],
+  "method": "cumulative prior-games-only averages, empirical-Bayes shrunk toward the season league mean with k=40 games, expressed as deviations",
+  "redundancy": {
+    "h_park_factor": -0.0064,
+    "d_pythag": -0.0085,
+    "h_rf_50": -0.0682,
+    "verdict": "NOT redundant, as predicted"
+  },
+  "the_decisive_test": {
+    "name": "split-half reliability",
+    "method": "split each umpire's games chronologically in half; if a real tendency exists, his first-half average must predict his second-half average",
+    "runs_correlation": 0.0849,
+    "runs_p": 0.3848,
+    "strikeouts_correlation": 0.0948,
+    "strikeouts_p": 0.3457,
+    "umpires_tested": 107,
+    "verdict": "NO persistent tendency - the apparent effect is sampling noise"
+  },
+  "variance_decomposition": {
+    "observed_sd_of_career_run_averages": 0.3428,
+    "expected_sd_from_pure_chance": 0.3072,
+    "ratio": 1.116,
+    "interpretation": "umpire-to-umpire differences are only 12% larger than what random assignment of games would produce; essentially all apparent umpire 'personality' in run scoring is chance"
+  },
+  "walk_forward_result": {
+    "home_win_base": 0.5655,
+    "home_win_with": 0.5651,
+    "delta": -0.0004,
+    "bar": 0.0081,
+    "total_base_corr": 0.1578,
+    "total_with_corr": 0.1596,
+    "delta_corr": 0.0017
+  },
+  "verdict": "REJECTED - not shipped",
+  "why": "Failed for a THIRD distinct reason. Prior rejections were redundancy (six families) and insufficient effect size (pitch matchup). This one is measurement unreliability: the underlying quantity does not persist, so there is nothing to measure. Correctly non-redundant and correctly computed, but the signal does not exist.",
+  "note": "The raw correlation with total runs was NEGATIVE (-0.018), which is the signature of regression to the mean rather than a real tendency. That prompted the split-half test instead of accepting the number."
+}

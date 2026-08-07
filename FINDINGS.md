@@ -943,3 +943,100 @@ A reusable harness. Any future strategy can be formed on 2019-2022 and replayed
 frozen on 2023-2026 to get an un-inflated estimate before shipping. That is a
 stronger guarantee than the significance gate alone, because it catches
 selection overfitting rather than merely penalising it.
+
+---
+
+## Umpires and bullpen availability (2026-08-05)
+
+Both were the remaining "structural" candidates — the category that produced the
+only two successes so far. Both rejected, one for a genuinely new reason.
+
+### Umpires: a third distinct failure mode
+
+Home-plate umpire assignments were collected for **22,935 games, 137 umpires**,
+~100% coverage. Tendencies (runs, strikeouts, walks, home win rate) were built
+prior-games-only and empirical-Bayes shrunk.
+
+The redundancy check passed exactly as the hypothesis predicted — umpire
+tendency correlates just −0.007 with park factor and −0.009 with Pythagorean.
+Genuinely non-redundant.
+
+But the raw correlation with total runs came out **negative** (−0.018): umpires
+with high-scoring histories preside over *fewer* runs. That is the signature of
+regression to the mean, so instead of accepting it I ran a split-half test.
+
+| Quantity | First-half vs second-half correlation | p |
+|---|---|---|
+| Total runs | **+0.085** | 0.38 |
+| Strikeouts | **+0.095** | 0.35 |
+
+**Umpire tendencies do not persist.** A variance decomposition confirms it:
+
+```
+observed spread of career run averages   0.343
+expected spread from pure chance         0.307
+ratio                                    1.116
+```
+
+Umpire-to-umpire differences are only 12% larger than random assignment would
+produce. Walk-forward agreed: −0.0004 on home win, +0.0017 on totals.
+
+This is the **third distinct reason** a family has failed:
+1. Redundancy with team form (six families)
+2. Effect size too small (pitch matchup)
+3. **Measurement unreliability — the underlying quantity does not persist**
+
+Correctly non-redundant, correctly computed, and there was simply nothing there.
+
+### Bullpen availability: right sign, too small
+
+The earlier bullpen test used runs allowed as a proxy. This version measured
+**actual reliever pitches** from pitch-level data — 25,949 team-days.
+
+The signal is real and correctly signed:
+
+| Feature | vs home win | p |
+|---|---|---|
+| d_bp_pitches_3d | **−0.0345** | 1.4e-04 |
+| d_bp_heavy_arms_2d | −0.0375 | 8.0e-04 |
+
+Monotonic too: as a home bullpen's 3-day workload rises from 95 to 244 pitches,
+away runs rise from 4.363 to 4.495.
+
+Walk-forward: **+0.0000** on home win, −0.0001 on totals, +0.0015 restricted to
+covered games (bar ±0.0106). Same failure as the pitch matchup — a 0.035
+correlation explains ~0.1% of variance and cannot move a 56% classifier.
+
+### A silent-failure bug worth recording
+
+The first bullpen build returned zero rows without erroring. Cause: the arsenal
+pitch cache was trimmed to pitch-type fields and lacks `inning_topbot`, and
+`pd.read_parquet(columns=...)` returns an empty frame rather than raising. Fixed
+by switching to the `pitcher_sc` cache and adding an explicit schema probe that
+raises on mismatch.
+
+This is the second silent-truncation bug in the project (the first was an
+OOM-killed aggregation returning partial results). Both produced plausible,
+wrong output. Loud failure guards are now standard in these modules.
+
+### Running tally: ten rejections, two successes
+
+| Family | Failure mode |
+|---|---|
+| Team Statcast | redundant |
+| Pitcher Statcast | redundant |
+| Inning profile | no market value |
+| Bullpen (proxy) | redundant |
+| Travel / momentum | redundant |
+| Starting lineups | redundant (0.51) |
+| Player Statcast | redundant (0.59) |
+| Pitch matchup | effect too small |
+| **Umpires** | **does not persist** |
+| **Bullpen (measured)** | **effect too small** |
+| **Weather** | **SHIPPED: totals skill +0.0051 → +0.0093** |
+| **F5 markets** | **SHIPPED: new market, +0.0150 skill** |
+
+The structural-vs-participant heuristic held up as a *screen* — both structural
+candidates were non-redundant, unlike every participant feature. But
+non-redundancy only gets an idea to the starting line. Weather shipped because
+it moves scoring ~1.5 runs; umpires and bullpen move it by hundredths.
