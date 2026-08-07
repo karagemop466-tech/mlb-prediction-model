@@ -269,11 +269,30 @@ second-most-skillful market accumulates forward evidence too.
 
 ### What would move the needle
 
-Based on eight experiments, the pattern is clear: features describing **who is
-playing** are redundant with team form; features describing **structure**
-(conditions, game phase) are not. Both successes — weather and F5 markets — came
-from the second category. The next candidates should too:
+**Both remaining structural candidates have now been tested and rejected.**
 
-1. **Umpire assignments** — measurable strike-zone effects, external to teams
-2. **Bullpen availability** — usage over prior 3 days, a real structural constraint
-3. **Inning-level markets beyond F5** — the simulator already generates them
+- **Umpires** (22,935 games, 137 umpires): correctly non-redundant, but the
+  tendency does not persist. Split-half correlation +0.085 (p=0.38) for runs,
+  +0.095 (p=0.35) for strikeouts. Umpire-to-umpire spread is only 1.12x what
+  pure chance produces. Walk-forward −0.0004.
+- **Bullpen workload** (measured reliever pitches, not the earlier proxy):
+  correct sign and significant (−0.035 with home win, p=1.4e-04) but far too
+  small. Walk-forward +0.0000.
+
+That closes out the structural-feature hypothesis list. The refined lesson:
+non-redundancy is a **screen, not a predictor of value**. Both structural
+candidates passed the redundancy check that killed six participant features,
+and both still failed — one because the quantity was noise, one because the
+effect was hundredths of a run.
+
+Ten rejections, two successes. What remains:
+
+1. **Accept the ceiling.** ~55.9% on 2023-2026 under the honest day-by-day
+   protocol, driven down by a 22% fall in team-quality dispersion since 2019.
+   This is league parity, not model deficiency.
+2. **Inning-level markets** — the simulator already generates them, and F5
+   proved the mechanism transfers (+0.0150 skill, second-best market). Innings
+   1-3 or 1-7 lines are near-free extensions.
+3. **Market breadth over accuracy depth.** Every accuracy avenue tested has
+   returned hundredths of a percent; new coherent markets have returned
+   hundredths of a *skill point*, which is an order of magnitude better.
